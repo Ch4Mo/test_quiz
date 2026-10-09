@@ -8,6 +8,7 @@ interface QuizSummary {
   id: string;
   title: string;
   questionCount: number;
+  enabledCount: number;
 }
 interface GameSummary {
   code: string;
@@ -133,12 +134,13 @@ export function AdminHome() {
                   <strong>{q.title}</strong>
                   <span className="muted small">
                     {q.questionCount} question{q.questionCount > 1 ? "s" : ""}
+                    {q.enabledCount < q.questionCount && ` · ${q.enabledCount} cochée${q.enabledCount > 1 ? "s" : ""}`}
                   </span>
                 </div>
                 <Link className="btn btn-small btn-ghost" href={`/admin/quiz/${q.id}`}>
                   ✏️ Éditer
                 </Link>
-                <button className="btn btn-small btn-primary" disabled={busy || q.questionCount === 0} onClick={() => launch(q)}>
+                <button className="btn btn-small btn-primary" disabled={busy || q.enabledCount === 0} onClick={() => launch(q)}>
                   ▶ Lancer une partie
                 </button>
                 <button className="btn btn-small btn-ghost btn-danger" disabled={busy} onClick={() => remove(q)} title="Supprimer">

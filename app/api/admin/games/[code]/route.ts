@@ -29,10 +29,11 @@ export async function POST(req: Request, { params }: Ctx) {
         .from("questions")
         .select("id")
         .eq("quiz_id", game.quiz_id)
+        .eq("enabled", true)
         .order("position")
         .order("created_at");
       if (error) return fail(error.message, 500);
-      if (!questions.length) return fail("Ce quiz ne contient aucune question.", 409);
+      if (!questions.length) return fail("Aucune question cochée dans ce quiz.", 409);
       // Écran des règles, puis la première question arrive toute seule
       patch = {
         status: "intro",

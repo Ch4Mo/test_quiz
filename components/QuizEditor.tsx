@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { LETTERS, MAX_CHOICES, MIN_CHOICES, TYPE_ICONS, TYPE_LABELS, choiceClass } from "@/lib/choices";
 import type { Choice, QuestionRow, QuestionType, QuizRow, QuizSettings } from "@/lib/types";
 import { Letter } from "./Letter";
 import { MediaUpload } from "./MediaUpload";
 
-type Draft = Omit<QuestionRow, "id" | "quiz_id" | "position"> & { id?: string };
+type Draft = Omit<QuestionRow, "id" | "quiz_id" | "position" | "enabled"> & { id?: string };
 
 function emptyDraft(type: QuestionType): Draft {
   return {
@@ -67,14 +67,61 @@ export function QuizEditor({ quizId }: { quizId: string }) {
     run(async () => setQuiz(await api<QuizRow>(`/api/admin/quizzes/${quizId}`, { method: "PATCH", body: { [key]: value } })));
   };
 
+  const saveOrder = (next: QuestionRow[]) => {
+    setQuestions(next);
+    run(async () => {
+      await api(`/api/admin/quizzes/${quizId}/reorder`, { body: { ids: next.map((q) => q.id) } });
+    });
+  };
+
   const move = (index: number, delta: number) => {
     const target = index + delta;
     if (target < 0 || target >= questions.length) return;
     const next = [...questions];
     [next[index], next[target]] = [next[target], next[index]];
+    saveOrder(next);
+  };
+
+  // Glisser-déposer : la liste se réorganise pendant le déplacement, l'ordre est enregistré au lâcher
+  const [dragId, setDragId] = useState<string | null>(null);
+  const orderBeforeDrag = useRef<string[]>([]);
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id);
+    orderBeforeDrag.current = questions.map((q) => q.id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
+  const onDragOver = (e: React.DragEvent, overIndex: number) => {
+    if (!dragId) return;
+    e.preventDefault();
+    const from = questions.findIndex((q) => q.id === dragId);
+    if (from === -1 || from === overIndex) return;
+    const next = [...questions];
+    const [moved] = next.splice(from, 1);
+    next.splice(overIndex, 0, moved);
     setQuestions(next);
+  };
+  const onDragEnd = () => {
+    if (!dragId) return;
+    setDragId(null);
+    if (questions.map((q) => q.id).join() !== orderBeforeDrag.current.join()) saveOrder(questions);
+  };
+
+  // Cases à cocher : question jouée ou non lors des parties
+  const toggle = (q: QuestionRow) => {
+    const enabled = !q.enabled;
+    setQuestions((qs) => qs.map((x) => (x.id === q.id ? { ...x, enabled } : x)));
     run(async () => {
-      await api(`/api/admin/quizzes/${quizId}/reorder`, { body: { ids: next.map((q) => q.id) } });
+      await api(`/api/admin/questions/${q.id}`, { method: "PATCH", body: { enabled } });
+    });
+  };
+  const enabledCount = questions.filter((q) => q.enabled).length;
+  const allEnabled = questions.length > 0 && enabledCount === questions.length;
+  const toggleAll = () => {
+    const enabled = !allEnabled;
+    setQuestions((qs) => qs.map((x) => ({ ...x, enabled })));
+    run(async () => {
+      await api(`/api/admin/quizzes/${quizId}/enable`, { body: { enabled } });
     });
   };
 
@@ -154,10 +201,51 @@ export function QuizEditor({ quizId }: { quizId: string }) {
         {questions.length === 0 ? (
           <p className="muted">Aucune question. Ajoutez une question simple, image ou musicale.</p>
         ) : (
+          <>
+          <div className="row list-toolbar">
+            <label className="check-label">
+              <input
+                type="checkbox"
+                className="check"
+                checked={allEnabled}
+                ref={(el) => {
+                  if (el) el.indeterminate = enabledCount > 0 && !allEnabled;
+                }}
+                onChange={toggleAll}
+                disabled={busy}
+              />
+              {allEnabled ? "Tout décocher" : "Tout cocher"}
+            </label>
+            <span className="muted small">
+              {enabledCount} / {questions.length} question{questions.length > 1 ? "s" : ""} jouée{enabledCount > 1 ? "s" : ""} · glissez ⠿ pour
+              changer l&apos;ordre
+            </span>
+          </div>
           <ol className="list">
             {questions.map((q, i) => (
-              <li key={q.id} className="list-item">
-                <span className="q-num">{i + 1}</span>
+              <li
+                key={q.id}
+                className={`list-item ${q.enabled ? "" : "is-disabled"} ${dragId === q.id ? "is-dragging" : ""}`}
+                draggable={!busy}
+                onDragStart={(e) => onDragStart(e, q.id)}
+                onDragOver={(e) => onDragOver(e, i)}
+                onDrop={(e) => e.preventDefault()}
+                onDragEnd={onDragEnd}
+              >
+                <span className="drag-handle" title="Glisser pour déplacer">
+                  ⠿
+                </span>
+                <input
+                  type="checkbox"
+                  className="check"
+                  checked={q.enabled}
+                  onChange={() => toggle(q)}
+                  disabled={busy}
+                  title={q.enabled ? "Question jouée — décocher pour l'ignorer" : "Question ignorée — cocher pour la jouer"}
+                />
+                <span className="q-num" title={q.enabled ? "Ordre de passage" : "Non jouée"}>
+                  {q.enabled ? questions.slice(0, i + 1).filter((x) => x.enabled).length : "–"}
+                </span>
                 <span className="q-type" title={TYPE_LABELS[q.type]}>
                   {TYPE_ICONS[q.type]}
                 </span>
@@ -199,6 +287,7 @@ export function QuizEditor({ quizId }: { quizId: string }) {
               </li>
             ))}
           </ol>
+          </>
         )}
       </section>
 

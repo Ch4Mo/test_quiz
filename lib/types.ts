@@ -17,6 +17,8 @@ export interface QuestionRow {
   correct_index: number;
   points: number;
   time_limit: number;
+  /** Question jouée lors des parties (cochée dans la console). */
+  enabled: boolean;
 }
 
 export interface QuizSettings {

@@ -7,7 +7,7 @@ Une web app de quiz en équipes : les questions s'affichent sur le grand écran,
 - **Réponses sans texte** pour les questions simples : seule la lettre s'affiche, par exemple pour des pastilles A, B, C posées sur une photo d'illustration.
 - **Réponse définitive** : une fois validée sur le téléphone, la réponse est verrouillée côté serveur. Pas de retour en arrière possible.
 - **Défilement automatique** : une fois le quiz lancé, tout s'enchaîne seul (règles, questions, bonne réponse, compte à rebours, podium final). Les durées se règlent pour chaque quiz : 30 s pour répondre et 15 s entre les questions par défaut.
-- **Console admin** : création des quiz, ajout et édition des questions, upload des images et des extraits audio, choix de la bonne réponse, réordonnancement, suppression d'une partie ou de tout l'historique.
+- **Console admin** : création des quiz, ajout et édition des questions, cases à cocher pour choisir les questions jouées, réordonnancement par glisser-déposer, upload des images et des extraits audio, choix de la bonne réponse, réordonnancement, suppression d'une partie ou de tout l'historique.
 
 ## Déroulé d'une partie
 

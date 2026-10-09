@@ -33,6 +33,8 @@ create table if not exists questions (
   points        int  not null default 1,
   -- Temps de réponse en secondes, 0 = temps par défaut du quiz
   time_limit    int  not null default 0,
+  -- Question cochée = jouée lors des parties ; décochée = gardée dans le quiz mais ignorée
+  enabled       boolean not null default true,
   created_at    timestamptz not null default now()
 );
 create index if not exists questions_quiz_position on questions (quiz_id, position);
@@ -67,6 +69,7 @@ create table if not exists games (
 alter table quizzes add column if not exists answer_time int not null default 30;
 alter table quizzes add column if not exists pause_time  int not null default 15;
 alter table quizzes add column if not exists intro_time  int not null default 20;
+alter table questions add column if not exists enabled boolean not null default true;
 alter table games add column if not exists phase_ends_at       timestamptz;
 alter table games add column if not exists paused_remaining_ms int;
 alter table games add column if not exists answer_time int not null default 30;
