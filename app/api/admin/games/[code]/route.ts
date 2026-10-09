@@ -1,4 +1,5 @@
-import { loadGame, nextPhase, updateGame } from "@/lib/game";
+import crypto from "crypto";
+import { TEST_TEAM_NAME, loadGame, nextPhase, submitAnswer, updateGame } from "@/lib/game";
 import { adminGuard, fail, ok, readJson } from "@/lib/http";
 import { db } from "@/lib/supabase-server";
 import type { GameRow } from "@/lib/types";
@@ -16,7 +17,8 @@ export async function POST(req: Request, { params }: Ctx) {
   const { code } = await params;
   const game = await loadGame(code);
   if (!game) return fail("Partie introuvable.", 404);
-  const { action, teamId } = await readJson(req);
+  const body = await readJson(req);
+  const { action, teamId } = body;
 
   let patch: Partial<GameRow> | null = null;
   const running = game.status === "intro" || game.status === "question" || game.status === "reveal";
@@ -34,6 +36,13 @@ export async function POST(req: Request, { params }: Ctx) {
         .order("created_at");
       if (error) return fail(error.message, 500);
       if (!questions.length) return fail("Aucune question cochée dans ce quiz.", 409);
+      // Partie de test : une équipe « Test » joue pour l'admin, qui répond en cliquant sur l'écran
+      if (game.is_test) {
+        const { data: existing } = await db().from("teams").select("id").eq("game_id", game.id).eq("name", TEST_TEAM_NAME).maybeSingle();
+        if (!existing) {
+          await db().from("teams").insert({ game_id: game.id, name: TEST_TEAM_NAME, token: crypto.randomBytes(24).toString("hex") });
+        }
+      }
       // Écran des règles, puis la première question arrive toute seule
       patch = {
         status: "intro",
@@ -62,6 +71,15 @@ export async function POST(req: Request, { params }: Ctx) {
       patch = await nextPhase(game);
       if (!patch) return fail("Aucune étape à passer.", 409);
       break;
+    case "test-answer": {
+      // Clic sur une réponse de l'écran de jeu, uniquement en partie de test
+      if (!game.is_test) return fail("Réservé aux parties de test.", 403);
+      const { data: team } = await db().from("teams").select("id").eq("game_id", game.id).eq("name", TEST_TEAM_NAME).maybeSingle();
+      if (!team) return fail("Équipe de test introuvable.", 409);
+      const result = await submitAnswer(game, team.id, body.questionId, body.choice);
+      if ("error" in result) return fail(result.error, result.status);
+      return ok({ ok: true, choice: result.choice });
+    }
     case "finish":
       patch = { status: "finished", phase_ends_at: null, paused_remaining_ms: null };
       break;

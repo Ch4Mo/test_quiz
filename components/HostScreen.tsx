@@ -41,7 +41,7 @@ export function HostScreen({ code }: { code: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (busy || !running) return;
-      if ((e.target as HTMLElement)?.closest("input, textarea, button")) return;
+      if ((e.target as HTMLElement)?.closest("input, textarea, button, [role=button]")) return;
       if (e.key === " ") {
         e.preventDefault();
         act(paused ? "resume" : "pause");
@@ -61,10 +61,20 @@ export function HostScreen({ code }: { code: string }) {
   const { game } = state;
   return (
     <div className={`host host-${game.status}`}>
-      {game.status === "lobby" && <Lobby state={state} onKick={(teamId) => act("kick", { teamId })} />}
+      {game.status === "lobby" &&
+        (game.isTest ? (
+          <TestLobby state={state} busy={busy} onStart={() => act("start")} />
+        ) : (
+          <Lobby state={state} onKick={(teamId) => act("kick", { teamId })} />
+        ))}
       {game.status === "intro" && <Rules state={state} remaining={remaining} />}
       {(game.status === "question" || game.status === "reveal") && (
-        <QuestionView key={state.question?.id} state={state} remaining={remaining} />
+        <QuestionView
+          key={state.question?.id}
+          state={state}
+          remaining={remaining}
+          onTestAnswer={(choice) => act("test-answer", { questionId: state.question?.id, choice })}
+        />
       )}
       {game.status === "finished" && <Podium state={state} />}
       {paused && <div className="paused-banner">⏸ Pause</div>}
@@ -72,13 +82,9 @@ export function HostScreen({ code }: { code: string }) {
 
       <div className="host-controls">
         {(error || actionError) && <span className="error-text">{actionError ?? error}</span>}
-        {game.status === "lobby" && (
-          <button
-            className="btn btn-primary"
-            disabled={busy || (state.teams.length === 0 && !game.isTest)}
-            onClick={() => act("start")}
-          >
-            {game.isTest ? "🧪 Lancer le test" : "🚀 Lancer le quiz"}
+        {game.status === "lobby" && !game.isTest && (
+          <button className="btn btn-primary" disabled={busy || state.teams.length === 0} onClick={() => act("start")}>
+            🚀 Lancer le quiz
           </button>
         )}
         {running && (
@@ -119,10 +125,41 @@ function FullscreenButton() {
   );
 }
 
-/** Ouvre un « téléphone » de test dans une petite fenêtre, déjà inscrit comme équipe. */
-function openTestPhone(code: string) {
-  const n = Math.floor(Math.random() * 1000);
-  window.open(`/play/${code}?test=1`, `phone-${n}`, "popup,width=420,height=860");
+function TestLobby({ state, busy, onStart }: { state: GameState; busy: boolean; onStart: () => void }) {
+  return (
+    <div className="lobby">
+      <h1 className="host-title">{state.game.quizTitle}</h1>
+      <div className="card test-intro">
+        <h2>🧪 Partie de test</h2>
+        <ul className="rules-list">
+          <li>
+            <span className="rules-icon">🖱️</span>
+            <span>
+              Pas besoin de téléphone : <strong>cliquez directement sur les réponses</strong> à l&apos;écran
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">🔒</span>
+            <span>Comme en vrai, une réponse cliquée est définitive</span>
+          </li>
+          <li>
+            <span className="rules-icon">▶️</span>
+            <span>
+              Le déroulé est celui de la vraie partie : règles, questions, bonne réponse, compte à rebours, podium. Dès que vous
+              avez répondu, la bonne réponse s&apos;affiche
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">⏭</span>
+            <span>Utilisez « Passer » pour avancer plus vite</span>
+          </li>
+        </ul>
+        <button className="btn btn-primary btn-big" disabled={busy} onClick={onStart}>
+          🧪 Lancer le test
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) => void }) {
@@ -133,20 +170,6 @@ function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) =
   return (
     <div className="lobby">
       <h1 className="host-title">{state.game.quizTitle}</h1>
-      {state.game.isTest && (
-        <div className="card test-banner">
-          <div>
-            <strong>🧪 Partie de test</strong>
-            <p className="muted">
-              Vous pouvez lancer le test sans aucune équipe pour vérifier l&apos;affichage et le déroulé. Pour tester aussi les
-              réponses, ouvrez un ou plusieurs téléphones de test (ou scannez le QR code avec votre téléphone).
-            </p>
-          </div>
-          <button className="btn btn-primary" onClick={() => openTestPhone(state.game.code)}>
-            📱 Ouvrir un téléphone de test
-          </button>
-        </div>
-      )}
       <div className="lobby-grid">
         <div className="card qr-card">
           <p className="qr-caption">Scannez pour rejoindre la partie</p>
@@ -273,7 +296,15 @@ function useImageColumns(count: number, enabled: boolean, fallback: number) {
   return { ref, cols };
 }
 
-function QuestionView({ state, remaining }: { state: GameState; remaining: number | null }) {
+function QuestionView({
+  state,
+  remaining,
+  onTestAnswer,
+}: {
+  state: GameState;
+  remaining: number | null;
+  onTestAnswer: (choice: number) => void;
+}) {
   const q = state.question;
   const revealed = state.game.status === "reveal";
   const isLast = state.game.index + 1 >= state.game.total;
@@ -286,6 +317,9 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
   const defaultCols = answerColumns(q?.choices.length ?? 0, "host", isImage);
   const imageGrid = useImageColumns(q?.choices.length ?? 0, isImage, defaultCols);
   if (!q) return null;
+  // Partie de test : l'admin répond en cliquant sur une réponse (une seule fois, comme sur un téléphone)
+  const picked = state.testAnswer;
+  const clickable = state.game.isTest && state.game.status === "question" && picked === null && remaining !== 0;
   const answeredCount = state.teams.filter((t) => t.answered).length;
   const hasImageAside = q.type !== "music" && q.mediaUrl;
   // Réponses sans texte (ex. pastilles A, B, C posées sur une photo) : la photo prend la place
@@ -301,6 +335,7 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
           {TYPE_ICONS[q.type]} {TYPE_LABELS[q.type]}
         </span>
         <span className="pill pill-soft">{pts(q.points)}</span>
+        {clickable && <span className="pill pill-test">🖱️ Cliquez sur une réponse</span>}
         <span className="spacer" />
         <span className="pill pill-soft">
           {answeredCount} / {state.teams.length} ont répondu
@@ -336,7 +371,15 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
           {q.choices.map((c, i) => {
             const status = revealed ? (i === q.correctIndex ? "is-correct" : "is-wrong") : "";
             return (
-              <div key={i} className={`answer ${choiceClass(i)} ${status} ${!c.text && q.type !== "image" ? "letter-only" : ""}`}>
+              <div
+                key={i}
+                className={`answer ${choiceClass(i)} ${status} ${!c.text && q.type !== "image" ? "letter-only" : ""} ${clickable ? "is-clickable" : ""} ${picked === i ? "is-picked" : ""} ${picked !== null && picked !== i && !revealed ? "is-not-picked" : ""}`}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => onTestAnswer(i) : undefined}
+                onKeyDown={clickable ? (e) => (e.key === "Enter" || e.key === " ") && onTestAnswer(i) : undefined}
+              >
+                {picked === i && <span className="picked-tag">Votre réponse</span>}
                 {q.type === "image" && c.imageUrl ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}

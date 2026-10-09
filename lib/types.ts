@@ -105,6 +105,8 @@ export interface GameState {
     answer: number | null;
     correct: boolean | null;
   } | null;
+  /** Partie de test : réponse cliquée par l'admin sur l'écran de jeu pour la question en cours. */
+  testAnswer: number | null;
   /** Vrai si l'équipe demandée n'existe plus (supprimée par l'admin). */
   invalidTeam: boolean;
 }

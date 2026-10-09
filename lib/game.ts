@@ -209,6 +209,61 @@ export async function buildState(
     teams: teamStates,
     distribution,
     me,
+    testAnswer: game.is_test
+      ? (currentAnswers.get(teams.find((t) => t.name === TEST_TEAM_NAME)?.id ?? "") ?? null)
+      : null,
     invalidTeam,
   };
+}
+
+/** Nom de l'équipe qui joue à la place de l'admin pendant une partie de test. */
+export const TEST_TEAM_NAME = "Test";
+
+/**
+ * Enregistre la réponse d'une équipe à la question en cours. Une réponse enregistrée ne peut plus
+ * être modifiée. Utilisé par les téléphones et par les clics de l'admin en partie de test.
+ */
+export async function submitAnswer(
+  game: GameRow,
+  teamId: string,
+  questionId: unknown,
+  choice: unknown,
+): Promise<{ error: string; status: number } | { choice: number }> {
+  if (game.status !== "question" || currentQuestionId(game) !== questionId) {
+    return { error: "Les réponses sont closes pour cette question.", status: 409 };
+  }
+  const { data: question } = await db().from("questions").select("*").eq("id", questionId).maybeSingle();
+  if (!question) return { error: "Question introuvable.", status: 404 };
+  const q = question as QuestionRow;
+  if (!answersOpen(game)) return { error: "Temps écoulé !", status: 409 };
+
+  const index = Number(choice);
+  if (!Number.isInteger(index) || index < 0 || index >= q.choices.length) return { error: "Réponse invalide.", status: 400 };
+
+  const isCorrect = index === q.correct_index;
+  const { error } = await db().from("answers").insert({
+    game_id: game.id,
+    team_id: teamId,
+    question_id: q.id,
+    choice_index: index,
+    is_correct: isCorrect,
+    points: isCorrect ? q.points : 0,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "Votre équipe a déjà répondu à cette question.", status: 409 };
+    return { error: error.message, status: 500 };
+  }
+
+  // Toutes les équipes ont répondu : inutile d'attendre la fin du chrono, la réponse s'affiche tout de suite
+  const [teams, answered] = await Promise.all([
+    db().from("teams").select("id").eq("game_id", game.id),
+    db().from("answers").select("team_id").eq("game_id", game.id).eq("question_id", q.id),
+  ]);
+  const everyone = (teams.data?.length ?? 0) > 0 && (answered.data?.length ?? 0) >= (teams.data?.length ?? 0);
+  if (everyone && game.phase_ends_at) {
+    await updateGame(game, { phase_ends_at: new Date(Date.now() - ANSWER_GRACE_MS).toISOString() });
+  } else {
+    await bumpGame(game.id);
+  }
+  return { choice: index };
 }
