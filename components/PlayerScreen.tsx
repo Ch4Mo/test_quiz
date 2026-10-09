@@ -212,11 +212,13 @@ function TeamView({
       if (!q || q.correctIndex === null) return null;
       const solution = `La bonne réponse était ${LETTERS[q.correctIndex]}${q.choices[q.correctIndex]?.text ? ` : ${q.choices[q.correctIndex].text}` : ""}.`;
       const next =
-        remaining !== null ? (
-          <p className="muted next-hint">
-            {state.game.index + 1 < state.game.total ? "Question suivante" : "Résultats"} dans {remaining} s
+        remaining === null ? null : state.game.index + 1 < state.game.total ? (
+          <p className="muted next-hint">Question suivante dans {remaining} s</p>
+        ) : (
+          <p className="big-countdown final-hint">
+            🏁 Résultats dans <strong>{remaining}</strong>
           </p>
-        ) : null;
+        );
       if (me.answer === null) {
         return (
           <>

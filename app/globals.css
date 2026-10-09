@@ -217,7 +217,7 @@ textarea.input { resize: vertical; }
   background: rgba(15, 21, 48, 0.85);
   border: 1px solid var(--border);
   backdrop-filter: blur(8px);
-  z-index: 10;
+  z-index: 20; /* au-dessus du compte à rebours final : l'admin garde la main */
   opacity: 0.55;
   transition: opacity 0.2s;
 }
@@ -452,6 +452,41 @@ textarea.input { resize: vertical; }
 
 /* Compte à rebours avant la question suivante */
 .next-countdown { display: inline-flex; align-items: center; gap: 12px; font-weight: 700; font-size: clamp(1rem, 1.5vw, 1.5rem); }
+/* Dernier compte à rebours, au centre de l'écran */
+.final-countdown {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 11, 28, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 12;
+  animation: fade-in 0.4s ease-out;
+}
+.final-countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+  padding: clamp(20px, 4vh, 48px) clamp(32px, 6vw, 96px);
+  border-radius: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  animation: pop 0.4s ease-out;
+}
+.final-countdown-icon { font-size: clamp(2.5rem, 7vh, 5rem); line-height: 1; }
+.final-countdown-card p { margin: 0; font-size: clamp(1.3rem, min(3vw, 5vh), 2.8rem); font-weight: 800; }
+.final-countdown-card strong {
+  font-size: clamp(5rem, min(16vw, 26vh), 14rem);
+  line-height: 1;
+  font-weight: 900;
+  color: #c9bbff;
+  animation: pop 0.35s ease-out;
+}
+@keyframes fade-in { from { opacity: 0; } }
+
 .paused-banner {
   position: fixed;
   top: 16px;
@@ -551,6 +586,7 @@ textarea.input { resize: vertical; }
 .big-countdown strong { display: block; font-size: 4rem; line-height: 1.1; color: #c9bbff; }
 .phone-rules { list-style: none; margin: 10px 0 0; padding: 14px 18px; border-radius: 14px; background: var(--surface); text-align: left; display: flex; flex-direction: column; gap: 8px; }
 .next-hint { text-align: center; margin: 18px 0 0; font-weight: 600; }
+.final-hint { text-align: center; margin: 24px 0 0; font-weight: 700; }
 
 .join { display: flex; flex-direction: column; gap: 14px; }
 .join h1 { font-size: 2rem; margin: 0 0 10px; }

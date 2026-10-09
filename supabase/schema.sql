@@ -11,8 +11,8 @@ create table if not exists quizzes (
   id          uuid primary key default gen_random_uuid(),
   title       text not null default 'Nouveau quiz',
   -- Défilement automatique : temps de réponse, pause entre les questions, écran des règles (secondes)
-  answer_time int  not null default 20,
-  pause_time  int  not null default 10,
+  answer_time int  not null default 30,
+  pause_time  int  not null default 15,
   intro_time  int  not null default 20,
   created_at  timestamptz not null default now()
 );
@@ -55,8 +55,8 @@ create table if not exists games (
   -- Temps restant mémorisé quand l'admin met la partie en pause
   paused_remaining_ms int,
   -- Réglages du quiz copiés au lancement
-  answer_time         int not null default 20,
-  pause_time          int not null default 10,
+  answer_time         int not null default 30,
+  pause_time          int not null default 15,
   intro_time          int not null default 20,
   -- Modifié à chaque changement (équipe, réponse, étape) pour notifier les écrans en temps réel
   version             bigint not null default 0,
@@ -64,14 +64,29 @@ create table if not exists games (
 );
 
 -- Mise à jour d'une base créée avec une version précédente de ce script (sans effet sinon)
-alter table quizzes add column if not exists answer_time int not null default 20;
-alter table quizzes add column if not exists pause_time  int not null default 10;
+alter table quizzes add column if not exists answer_time int not null default 30;
+alter table quizzes add column if not exists pause_time  int not null default 15;
 alter table quizzes add column if not exists intro_time  int not null default 20;
 alter table games add column if not exists phase_ends_at       timestamptz;
 alter table games add column if not exists paused_remaining_ms int;
-alter table games add column if not exists answer_time int not null default 20;
-alter table games add column if not exists pause_time  int not null default 10;
+alter table games add column if not exists answer_time int not null default 30;
+alter table games add column if not exists pause_time  int not null default 15;
 alter table games add column if not exists intro_time  int not null default 20;
+-- Passage des durées par défaut de 20 s / 10 s à 30 s / 15 s.
+-- Ne s'exécute qu'une fois (tant que l'ancienne valeur par défaut est en place) :
+-- les quiz restés sur les anciennes durées passent aux nouvelles, les réglages faits ensuite sont conservés.
+do $$
+begin
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'quizzes' and column_name = 'answer_time') = '20' then
+    update quizzes set answer_time = 30 where answer_time = 20;
+    update quizzes set pause_time = 15 where pause_time = 10;
+  end if;
+end $$;
+alter table quizzes alter column answer_time set default 30;
+alter table quizzes alter column pause_time  set default 15;
+alter table games   alter column answer_time set default 30;
+alter table games   alter column pause_time  set default 15;
 alter table games drop constraint if exists games_status_check;
 alter table games add constraint games_status_check
   check (status in ('lobby', 'intro', 'question', 'reveal', 'leaderboard', 'finished'));

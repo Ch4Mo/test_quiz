@@ -217,6 +217,7 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
   const q = state.question;
   if (!q) return null;
   const revealed = state.game.status === "reveal";
+  const isLast = state.game.index + 1 >= state.game.total;
   const answeredCount = state.teams.filter((t) => t.answered).length;
   const hasImageAside = q.type !== "music" && q.mediaUrl;
   // Réponses sans texte (ex. pastilles A, B, C posées sur une photo) : la photo prend la place
@@ -238,9 +239,9 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
         </span>
         {state.game.status === "question" && remaining === 0 && <span className="pill pill-alert">Temps écoulé</span>}
         {state.game.status === "question" && remaining !== null && <Timer seconds={remaining} total={q.timeLimit} />}
-        {revealed && remaining !== null && (
+        {revealed && !isLast && remaining !== null && (
           <span className="next-countdown">
-            {state.game.index + 1 < state.game.total ? "Question suivante dans" : "Résultats dans"}
+            Question suivante dans
             <Timer seconds={remaining} total={state.game.pauseTime} calm />
           </span>
         )}
@@ -293,6 +294,17 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
           })}
         </div>
       </div>
+
+      {/* Après la dernière question : compte à rebours vers les résultats, au centre de l'écran */}
+      {revealed && isLast && remaining !== null && (
+        <div className="final-countdown">
+          <div className="final-countdown-card">
+            <span className="final-countdown-icon">🏁</span>
+            <p>Quiz terminé ! Résultats dans</p>
+            <strong key={remaining}>{remaining}</strong>
+          </div>
+        </div>
+      )}
 
       <ul className="team-strip">
         {state.teams.map((t) => (
