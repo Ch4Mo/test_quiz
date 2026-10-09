@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { TYPE_ICONS, TYPE_LABELS, answerColumns, choiceClass, pts } from "@/lib/choices";
 import type { GameState } from "@/lib/types";
@@ -214,9 +214,42 @@ function Rules({ state, remaining }: { state: GameState; remaining: number | nul
   );
 }
 
+/**
+ * Réponses en images : choisit le nombre de colonnes qui donne les plus grandes images
+ * (format photo 4:3) pour la place disponible, ex. 4 images sur une ligne sur un écran large.
+ */
+function useImageColumns(count: number, enabled: boolean, fallback: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(fallback);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el) return;
+    const compute = () => {
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      let best = fallback;
+      let bestSize = 0;
+      for (let c = 1; c <= count; c++) {
+        const rows = Math.ceil(count / c);
+        const w = (el.clientWidth - gap * (c - 1)) / c;
+        const h = (el.clientHeight - gap * (rows - 1)) / rows;
+        const size = Math.min(w, (h * 4) / 3);
+        if (size > bestSize + 1) {
+          bestSize = size;
+          best = c;
+        }
+      }
+      setCols(best);
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [count, enabled, fallback]);
+  return { ref, cols };
+}
+
 function QuestionView({ state, remaining }: { state: GameState; remaining: number | null }) {
   const q = state.question;
-  if (!q) return null;
   const revealed = state.game.status === "reveal";
   const isLast = state.game.index + 1 >= state.game.total;
   // Toutes les réponses d'une question à la même taille : celle qui convient à la plus longue
@@ -224,6 +257,10 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
   const reportFit = useCallback((i: number, px: number) => setFitSizes((s) => (s[i] === px ? s : { ...s, [i]: px })), []);
   const sizes = Object.values(fitSizes);
   const answerSize = sizes.length ? Math.min(...sizes) : undefined;
+  const isImage = q?.type === "image";
+  const defaultCols = answerColumns(q?.choices.length ?? 0, "host", isImage);
+  const imageGrid = useImageColumns(q?.choices.length ?? 0, isImage, defaultCols);
+  if (!q) return null;
   const answeredCount = state.teams.filter((t) => t.answered).length;
   const hasImageAside = q.type !== "music" && q.mediaUrl;
   // Réponses sans texte (ex. pastilles A, B, C posées sur une photo) : la photo prend la place
@@ -268,7 +305,8 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
         )}
         <div
           className={`answers answers-${q.type === "image" ? "image" : "text"} ${q.choices.length > 6 ? "answers-many" : ""} ${lettersOnly ? "answers-letters" : ""}`}
-          style={{ ["--cols" as string]: answerColumns(q.choices.length, "host", q.type === "image") }}
+          ref={imageGrid.ref}
+          style={{ ["--cols" as string]: isImage ? imageGrid.cols : defaultCols }}
         >
           {q.choices.map((c, i) => {
             const status = revealed ? (i === q.correctIndex ? "is-correct" : "is-wrong") : "";
@@ -278,10 +316,9 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.imageUrl} alt={c.text || `Réponse ${i + 1}`} />
-                    <div className="answer-caption">
-                      <Letter index={i} size="lg" />
-                      {c.text && <span>{c.text}</span>}
-                    </div>
+                    {/* Lettre et légende posées sur l'image : l'image occupe toute la bulle */}
+                    <Letter index={i} size="lg" />
+                    {c.text && <div className="answer-caption">{c.text}</div>}
                   </>
                 ) : (
                   <>

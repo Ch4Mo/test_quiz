@@ -15,6 +15,9 @@ export function db(): SupabaseClient {
     }
     client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
+      // Next.js peut mettre en cache les requêtes fetch côté serveur (notamment sur Vercel) :
+      // on l'interdit, sinon la console et les écrans afficheraient des données périmées.
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
     });
   }
   return client;

@@ -376,17 +376,35 @@ textarea.input { resize: vertical; }
 .answers-many { gap: clamp(8px, 1vw, 14px); }
 .answers-many .answer { padding: 6px 10px; gap: 8px; border-radius: 14px; }
 .answers-many .answer-check { top: 4px; right: 6px; font-size: 1rem; }
-.answers-image .answer { flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; }
+/* Réponses en images : l'image remplit toute la bulle, la lettre et la légende sont posées dessus */
+.answers-image .answer { padding: 6px; display: block; }
 .answers-image .answer img {
-  flex: 1 1 0;
   width: 100%;
-  min-height: 0;
-  object-fit: contain;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
+  height: 100%;
+  object-fit: contain; /* l'image entière reste visible, sans recadrage */
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.25);
 }
-.answer-caption { white-space: pre-line; display: flex; align-items: center; gap: 12px; font-size: clamp(0.8rem, min(5cqw, 9cqh), 1.7rem); }
-.answers-image .answer .letter-lg { --s: clamp(26px, min(12cqw, 16cqh), 64px); }
+.answers-image .answer .letter-lg {
+  --s: clamp(28px, min(13cqw, 16cqh), 64px);
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.answer-caption {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  padding: 0.4em 0.8em;
+  border-radius: 0 0 14px 14px;
+  background: rgba(0, 0, 0, 0.55);
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.15;
+  font-size: clamp(0.75rem, min(4.5cqw, 7cqh), 1.6rem);
+}
 
 .is-revealed .answer.is-wrong { opacity: 0.28; filter: grayscale(0.7); transform: scale(0.97); }
 .is-revealed .answer.is-correct { transform: scale(1.03); box-shadow: 0 0 0 6px #fff, 0 0 40px rgba(255, 255, 255, 0.45); z-index: 1; }
@@ -415,8 +433,9 @@ textarea.input { resize: vertical; }
   font-size: clamp(0.65rem, min(3.6cqw, 13cqh), 1.2rem);
   white-space: nowrap;
 }
-.answers-image .answer-count { top: 16px; left: 16px; right: auto; bottom: auto; }
-.answers-image .answer-check { top: 16px; right: 16px; }
+.answers-image .answer-count { top: 16px; right: 16px; bottom: auto; }
+.answers-image .answer-check { top: auto; bottom: 16px; right: 16px; }
+.answers-image .answer:has(.answer-caption) .answer-check { bottom: calc(16px + 2.2em); }
 
 .team-strip { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .team-strip li {

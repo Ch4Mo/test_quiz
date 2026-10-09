@@ -89,8 +89,15 @@ export function QuizEditor({ quizId }: { quizId: string }) {
   const save = (d: Draft) =>
     run(async () => {
       const { id, ...body } = d;
-      if (id) await api(`/api/admin/questions/${id}`, { method: "PATCH", body });
-      else await api("/api/admin/questions", { body: { ...body, quiz_id: quizId } });
+      // La liste est mise à jour tout de suite avec la question enregistrée renvoyée par le serveur,
+      // puis rechargée pour être sûre d'être à jour
+      if (id) {
+        const saved = await api<QuestionRow>(`/api/admin/questions/${id}`, { method: "PATCH", body });
+        setQuestions((qs) => qs.map((q) => (q.id === saved.id ? saved : q)));
+      } else {
+        const saved = await api<QuestionRow>("/api/admin/questions", { body: { ...body, quiz_id: quizId } });
+        setQuestions((qs) => [...qs, saved]);
+      }
       setDraft(null);
       await load();
     });
