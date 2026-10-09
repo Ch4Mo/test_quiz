@@ -20,6 +20,8 @@ Une web app de quiz en équipes : les questions s'affichent sur le grand écran,
    - à la fin du temps, ou dès que toutes les équipes ont répondu, la **bonne réponse** s'affiche avec un **compte à rebours** jusqu'à la question suivante ;
    - après la dernière question, le **podium** s'affiche sur l'écran, et chaque téléphone affiche le rang de son équipe.
 
+**Partie de test** : le bouton **🧪 Tester** (dans la liste des quiz ou dans l'éditeur) ouvre une partie d'essai, marquée « TEST » dans l'historique. Elle peut démarrer sans aucune équipe, pour vérifier l'affichage et le déroulé. Le bouton **📱 Ouvrir un téléphone de test** ouvre une fenêtre au format téléphone, déjà inscrite (« Test 1 », « Test 2 »…), pour répondre comme un joueur.
+
 Les durées se règlent dans l'éditeur du quiz, rubrique **Déroulé automatique**. Une question peut aussi avoir son propre temps de réponse (pratique pour un extrait musical).
 
 Pendant la partie, l'admin garde la main : **⏸ Pause** (ou la barre d'espace), **⏭ Passer** (ou la flèche droite) et **Terminer**. Le bouton ⛶ passe en plein écran.

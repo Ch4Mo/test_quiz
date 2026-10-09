@@ -8,7 +8,7 @@ export async function GET() {
   if (denied) return denied;
   const [quizzes, games, enabled] = await Promise.all([
     db().from("quizzes").select("id, title, created_at, questions(count)").order("created_at", { ascending: false }),
-    db().from("games").select("code, quiz_title, status, created_at").order("created_at", { ascending: false }).limit(10),
+    db().from("games").select("code, quiz_title, status, is_test, created_at").order("created_at", { ascending: false }).limit(10),
     db().from("questions").select("quiz_id").eq("enabled", true),
   ]);
   const enabledCount = new Map<string, number>();

@@ -195,6 +195,7 @@ export async function buildState(
       code: game.code,
       status: game.status,
       quizTitle: game.quiz_title,
+      isTest: !!game.is_test,
       index: game.current_index,
       total: game.question_ids.length,
       questionStartedAt: game.question_started_at ? new Date(game.question_started_at).getTime() : null,

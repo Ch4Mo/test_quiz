@@ -14,6 +14,7 @@ interface GameSummary {
   code: string;
   quiz_title: string;
   status: string;
+  is_test: boolean;
   created_at: string;
 }
 
@@ -67,9 +68,9 @@ export function AdminHome() {
     });
   };
 
-  const launch = (quiz: QuizSummary) =>
+  const launch = (quiz: QuizSummary, test = false) =>
     run(async () => {
-      const game = await api<{ code: string }>("/api/admin/games", { body: { quizId: quiz.id } });
+      const game = await api<{ code: string }>("/api/admin/games", { body: { quizId: quiz.id, test } });
       router.push(`/host/${game.code}`);
     });
 
@@ -140,6 +141,14 @@ export function AdminHome() {
                 <Link className="btn btn-small btn-ghost" href={`/admin/quiz/${q.id}`}>
                   ✏️ Éditer
                 </Link>
+                <button
+                  className="btn btn-small btn-ghost"
+                  disabled={busy || q.enabledCount === 0}
+                  onClick={() => launch(q, true)}
+                  title="Partie d'essai : démarrage sans équipe, avec un téléphone de test dans une fenêtre"
+                >
+                  🧪 Tester
+                </button>
                 <button className="btn btn-small btn-primary" disabled={busy || q.enabledCount === 0} onClick={() => launch(q)}>
                   ▶ Lancer une partie
                 </button>
@@ -165,7 +174,9 @@ export function AdminHome() {
               <li key={g.code} className="list-item">
                 <span className="code-tag">{g.code}</span>
                 <div className="grow">
-                  <strong>{g.quiz_title}</strong>
+                  <strong>
+                    {g.quiz_title} {g.is_test && <span className="test-tag">TEST</span>}
+                  </strong>
                   <span className="muted small">
                     {new Date(g.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · {STATUS_LABELS[g.status]}
                   </span>

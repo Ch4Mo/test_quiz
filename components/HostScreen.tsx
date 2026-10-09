@@ -68,12 +68,17 @@ export function HostScreen({ code }: { code: string }) {
       )}
       {game.status === "finished" && <Podium state={state} />}
       {paused && <div className="paused-banner">⏸ Pause</div>}
+      {game.isTest && game.status !== "lobby" && <div className="test-badge">🧪 TEST</div>}
 
       <div className="host-controls">
         {(error || actionError) && <span className="error-text">{actionError ?? error}</span>}
         {game.status === "lobby" && (
-          <button className="btn btn-primary" disabled={busy || state.teams.length === 0} onClick={() => act("start")}>
-            🚀 Lancer le quiz
+          <button
+            className="btn btn-primary"
+            disabled={busy || (state.teams.length === 0 && !game.isTest)}
+            onClick={() => act("start")}
+          >
+            {game.isTest ? "🧪 Lancer le test" : "🚀 Lancer le quiz"}
           </button>
         )}
         {running && (
@@ -114,6 +119,12 @@ function FullscreenButton() {
   );
 }
 
+/** Ouvre un « téléphone » de test dans une petite fenêtre, déjà inscrit comme équipe. */
+function openTestPhone(code: string) {
+  const n = Math.floor(Math.random() * 1000);
+  window.open(`/play/${code}?test=1`, `phone-${n}`, "popup,width=420,height=860");
+}
+
 function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) => void }) {
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
@@ -122,6 +133,20 @@ function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) =
   return (
     <div className="lobby">
       <h1 className="host-title">{state.game.quizTitle}</h1>
+      {state.game.isTest && (
+        <div className="card test-banner">
+          <div>
+            <strong>🧪 Partie de test</strong>
+            <p className="muted">
+              Vous pouvez lancer le test sans aucune équipe pour vérifier l&apos;affichage et le déroulé. Pour tester aussi les
+              réponses, ouvrez un ou plusieurs téléphones de test (ou scannez le QR code avec votre téléphone).
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={() => openTestPhone(state.game.code)}>
+            📱 Ouvrir un téléphone de test
+          </button>
+        </div>
+      )}
       <div className="lobby-grid">
         <div className="card qr-card">
           <p className="qr-caption">Scannez pour rejoindre la partie</p>

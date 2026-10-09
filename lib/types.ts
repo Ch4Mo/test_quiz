@@ -40,6 +40,7 @@ export interface GameRow extends QuizSettings {
   code: string;
   quiz_id: string | null;
   quiz_title: string;
+  is_test: boolean;
   status: GameStatus;
   question_ids: string[];
   current_index: number;
@@ -78,6 +79,8 @@ export interface GameState {
     code: string;
     status: GameStatus;
     quizTitle: string;
+    /** Partie de test : démarrage possible sans équipe. */
+    isTest: boolean;
     index: number;
     total: number;
     questionStartedAt: number | null;

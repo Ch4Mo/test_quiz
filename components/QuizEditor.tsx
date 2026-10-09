@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { LETTERS, MAX_CHOICES, MIN_CHOICES, TYPE_ICONS, TYPE_LABELS, choiceClass } from "@/lib/choices";
 import type { Choice, QuestionRow, QuestionType, QuizRow, QuizSettings } from "@/lib/types";
@@ -23,6 +24,7 @@ function emptyDraft(type: QuestionType): Draft {
 }
 
 export function QuizEditor({ quizId }: { quizId: string }) {
+  const router = useRouter();
   const [quiz, setQuiz] = useState<QuizRow | null>(null);
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
@@ -167,6 +169,19 @@ export function QuizEditor({ quizId }: { quizId: string }) {
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
           aria-label="Titre du quiz"
         />
+        <button
+          className="btn btn-small btn-ghost"
+          disabled={busy || !questions.some((q) => q.enabled)}
+          onClick={() =>
+            run(async () => {
+              const game = await api<{ code: string }>("/api/admin/games", { body: { quizId, test: true } });
+              router.push(`/host/${game.code}`);
+            })
+          }
+          title="Partie d'essai : démarrage sans équipe, avec un téléphone de test dans une fenêtre"
+        >
+          🧪 Tester ce quiz
+        </button>
       </header>
 
       {error && !draft && <p className="error-text">{error}</p>}

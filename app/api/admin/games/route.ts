@@ -6,7 +6,7 @@ import { db } from "@/lib/supabase-server";
 export async function POST(req: Request) {
   const denied = await adminGuard();
   if (denied) return denied;
-  const { quizId } = await readJson(req);
+  const { quizId, test } = await readJson(req);
   const { data: quiz } = await db()
     .from("quizzes")
     .select("id, title, answer_time, pause_time, intro_time")
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
         answer_time: quiz.answer_time,
         pause_time: quiz.pause_time,
         intro_time: quiz.intro_time,
+        is_test: test === true,
         version: Date.now(),
       })
       .select("code")

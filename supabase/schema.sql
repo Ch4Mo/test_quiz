@@ -60,6 +60,8 @@ create table if not exists games (
   answer_time         int not null default 30,
   pause_time          int not null default 15,
   intro_time          int not null default 20,
+  -- Partie de test lancée depuis la console (pas besoin d'équipe pour démarrer)
+  is_test             boolean not null default false,
   -- Modifié à chaque changement (équipe, réponse, étape) pour notifier les écrans en temps réel
   version             bigint not null default 0,
   created_at          timestamptz not null default now()
@@ -75,6 +77,7 @@ alter table games add column if not exists paused_remaining_ms int;
 alter table games add column if not exists answer_time int not null default 30;
 alter table games add column if not exists pause_time  int not null default 15;
 alter table games add column if not exists intro_time  int not null default 20;
+alter table games add column if not exists is_test boolean not null default false;
 -- Passage des durées par défaut de 20 s / 10 s à 30 s / 15 s.
 -- Ne s'exécute qu'une fois (tant que l'ancienne valeur par défaut est en place) :
 -- les quiz restés sur les anciennes durées passent aux nouvelles, les réglages faits ensuite sont conservés.

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { LETTERS, answerColumns, choiceClass, pts } from "@/lib/choices";
 import type { GameState } from "@/lib/types";
@@ -10,9 +10,17 @@ type TeamAuth = { teamId: string; token: string; name: string };
 
 const storageKey = (code: string) => `quiz-live-team-${code}`;
 
+/** Téléphone de test ouvert depuis l'écran de jeu (?test=1). */
+function isTestPhone(): boolean {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("test");
+}
+
+// Chaque fenêtre de test garde sa propre équipe (sessionStorage) ; un vrai téléphone la garde même après fermeture
+const store = () => (isTestPhone() ? sessionStorage : localStorage);
+
 function readTeam(code: string): TeamAuth | null {
   try {
-    const raw = localStorage.getItem(storageKey(code));
+    const raw = store().getItem(storageKey(code));
     return raw ? (JSON.parse(raw) as TeamAuth) : null;
   } catch {
     return null;
@@ -21,8 +29,8 @@ function readTeam(code: string): TeamAuth | null {
 
 function writeTeam(code: string, team: TeamAuth | null) {
   try {
-    if (team) localStorage.setItem(storageKey(code), JSON.stringify(team));
-    else localStorage.removeItem(storageKey(code));
+    if (team) store().setItem(storageKey(code), JSON.stringify(team));
+    else store().removeItem(storageKey(code));
   } catch {
     /* navigation privée : l'équipe ne sera simplement pas mémorisée */
   }
@@ -112,6 +120,32 @@ function JoinForm({ code, title, kicked, onJoined }: { code: string; title: stri
       setBusy(false);
     }
   };
+
+  // Téléphone de test : inscription automatique sous « Test 1 », « Test 2 »…
+  const autoJoined = useRef(false);
+  useEffect(() => {
+    if (!isTestPhone() || kicked || autoJoined.current) return;
+    autoJoined.current = true; // une seule inscription, même si l'effet est rejoué
+    (async () => {
+      setBusy(true);
+      for (let n = 1; n <= 20; n++) {
+        try {
+          const res = await api<{ teamId: string; token: string; name: string }>(`/api/games/${code}/join`, {
+            body: { name: `Test ${n}` },
+          });
+          onJoined(res);
+          return;
+        } catch (err) {
+          if (!/déjà pris/.test((err as Error).message)) {
+            setError((err as Error).message);
+            break;
+          }
+        }
+      }
+      setBusy(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <form className="join" onSubmit={submit}>

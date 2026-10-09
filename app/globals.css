@@ -476,6 +476,12 @@ textarea.input { resize: vertical; }
 
 /* Compte à rebours avant la question suivante */
 .next-countdown { display: inline-flex; align-items: center; gap: 12px; font-weight: 700; font-size: clamp(1rem, 1.5vw, 1.5rem); }
+/* Partie de test */
+.test-tag { margin-left: 6px; padding: 1px 8px; border-radius: 6px; background: #f5c518; color: #3b2a00; font-size: 0.75rem; font-weight: 800; vertical-align: middle; }
+.test-banner { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 1400px; width: 100%; margin: 0 auto 20px; border-color: #f5c518; }
+.test-banner p { margin: 4px 0 0; }
+.test-badge { position: fixed; bottom: 16px; left: 16px; padding: 4px 16px; border-radius: 999px; background: #f5c518; color: #3b2a00; font-weight: 800; font-size: 0.9rem; z-index: 14; opacity: 0.85; }
+
 /* Dernier compte à rebours, au centre de l'écran */
 .final-countdown {
   position: fixed;
