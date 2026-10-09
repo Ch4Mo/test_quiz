@@ -3,7 +3,7 @@ import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import { TYPE_ICONS, TYPE_LABELS, choiceClass, pts } from "@/lib/choices";
+import { TYPE_ICONS, TYPE_LABELS, answerColumns, choiceClass, pts } from "@/lib/choices";
 import type { GameState } from "@/lib/types";
 import { useCountdown, useGameState } from "@/lib/useGameState";
 import { Letter } from "./Letter";
@@ -144,7 +144,7 @@ function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) =
           ) : (
             <ul className="team-chips">
               {state.teams.map((t, i) => (
-                <li key={t.id} className={`team-chip ${choiceClass(i % 6)}`}>
+                <li key={t.id} className={`team-chip ${choiceClass(i)}`}>
                   {t.name}
                   <button
                     className="chip-remove"
@@ -169,6 +169,8 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
   const revealed = state.game.status === "reveal";
   const answeredCount = state.teams.filter((t) => t.answered).length;
   const hasImageAside = q.type !== "music" && q.mediaUrl;
+  // Réponses sans texte (ex. pastilles A, B, C posées sur une photo) : la photo prend la place
+  const lettersOnly = q.type === "text" && q.choices.every((c) => !c.text);
 
   return (
     <div className={`question-view type-${q.type} ${revealed ? "is-revealed" : ""}`}>
@@ -201,11 +203,14 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
           // eslint-disable-next-line @next/next/no-img-element
           <img className="question-image" src={q.mediaUrl!} alt="" />
         )}
-        <div className={`answers answers-${q.type === "image" ? "image" : "text"} answers-n${q.choices.length}`}>
+        <div
+          className={`answers answers-${q.type === "image" ? "image" : "text"} ${q.choices.length > 6 ? "answers-many" : ""} ${lettersOnly ? "answers-letters" : ""}`}
+          style={{ ["--cols" as string]: answerColumns(q.choices.length, "host", q.type === "image") }}
+        >
           {q.choices.map((c, i) => {
             const status = revealed ? (i === q.correctIndex ? "is-correct" : "is-wrong") : "";
             return (
-              <div key={i} className={`answer ${choiceClass(i)} ${status}`}>
+              <div key={i} className={`answer ${choiceClass(i)} ${status} ${!c.text && q.type !== "image" ? "letter-only" : ""}`}>
                 {q.type === "image" && c.imageUrl ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -218,7 +223,7 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
                 ) : (
                   <>
                     <Letter index={i} size="lg" />
-                    <span className="answer-text">{c.text}</span>
+                    {c.text && <span className="answer-text">{c.text}</span>}
                   </>
                 )}
                 {revealed && state.distribution && (

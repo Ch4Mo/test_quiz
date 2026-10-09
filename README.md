@@ -3,7 +3,8 @@
 Une web app de quiz en équipes : les questions s'affichent sur le grand écran, et chaque équipe répond depuis son téléphone après avoir scanné un QR code.
 
 - **3 types de questions** : simple (choix de textes), image (« quelle est la bonne situation ? » : on choisit une image) et musicale (un extrait audio, on choisit le titre).
-- **Réponses colorées et numérotées** A / B / C / D (jusqu'à F), avec la même couleur partout : grand écran, téléphones et console.
+- **Réponses colorées et numérotées** A / B / C / D… jusqu'à 26 réponses (A à Z), avec la même couleur partout : grand écran, téléphones et console.
+- **Réponses sans texte** pour les questions simples : seule la lettre s'affiche, par exemple pour des pastilles A, B, C posées sur une photo d'illustration.
 - **Réponse définitive** : une fois validée sur le téléphone, la réponse est verrouillée côté serveur. Pas de retour en arrière possible.
 - **Chrono facultatif** par question, points configurables, classement intermédiaire et podium final.
 - **Console admin** : création des quiz, ajout et édition des questions, upload des images et des extraits audio, choix de la bonne réponse, réordonnancement.

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import { LETTERS, choiceClass, pts } from "@/lib/choices";
+import { LETTERS, answerColumns, choiceClass, pts } from "@/lib/choices";
 import type { GameState } from "@/lib/types";
 import { useCountdown, useGameState } from "@/lib/useGameState";
 import { Letter } from "./Letter";
@@ -277,7 +277,10 @@ function AnswerPad({
         {remaining !== null && <span className={`pad-timer ${remaining <= 5 ? "urgent" : ""}`}>⏱ {remaining}s</span>}
       </div>
       <p className="pad-hint">{selected === null ? "Choisissez votre réponse" : "Confirmez votre choix"}</p>
-      <div className={`pad-grid pad-n${q.choices.length}`}>
+      <div
+        className={`pad-grid ${q.choices.length > 6 ? "pad-many" : ""}`}
+        style={{ ["--cols" as string]: answerColumns(q.choices.length, "phone") }}
+      >
         {q.choices.map((c, i) => (
           <button
             key={i}

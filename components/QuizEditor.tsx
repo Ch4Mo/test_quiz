@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import { MAX_CHOICES, MIN_CHOICES, TYPE_ICONS, TYPE_LABELS, choiceClass } from "@/lib/choices";
+import { LETTERS, MAX_CHOICES, MIN_CHOICES, TYPE_ICONS, TYPE_LABELS, choiceClass } from "@/lib/choices";
 import type { Choice, QuestionRow, QuestionType, QuizRow } from "@/lib/types";
 import { Letter } from "./Letter";
 import { MediaUpload } from "./MediaUpload";
@@ -276,7 +276,10 @@ function QuestionForm({
         )}
 
         <div className="field">
-          <span>Réponses — cochez la bonne réponse</span>
+          <span>
+            Réponses — cochez la bonne réponse
+            {d.type === "text" && <span className="muted small"> · le texte est facultatif : sans texte, seule la lettre s&apos;affiche</span>}
+          </span>
           <div className={`choice-editor ${d.type === "image" ? "choice-editor-image" : ""}`}>
             {d.choices.map((c, i) => (
               <div key={i} className={`choice-row ${choiceClass(i)} ${d.correct_index === i ? "is-correct" : ""}`}>
@@ -292,7 +295,13 @@ function QuestionForm({
                     className="input"
                     value={c.text}
                     onChange={(e) => setChoice(i, { text: e.target.value })}
-                    placeholder={d.type === "image" ? "Légende (facultative)" : `Réponse ${String.fromCharCode(65 + i)}`}
+                    placeholder={
+                      d.type === "image"
+                        ? "Légende (facultative)"
+                        : d.type === "text"
+                          ? `Réponse ${LETTERS[i]} (vide = lettre seule)`
+                          : `Réponse ${LETTERS[i]}`
+                    }
                   />
                 </div>
                 {d.choices.length > MIN_CHOICES && (

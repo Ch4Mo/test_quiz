@@ -40,7 +40,8 @@ export function parseQuestion(body: Record<string, unknown>): { error: string } 
   }
   for (const [i, c] of choices.entries()) {
     if (type === "image" && !c.image_url) return { error: `Ajoutez une image pour la réponse ${String.fromCharCode(65 + i)}.` };
-    if (type !== "image" && !c.text) return { error: `Le texte de la réponse ${String.fromCharCode(65 + i)} est vide.` };
+    // Question simple : le texte est facultatif (seule la lettre s'affiche, ex. pastilles sur une photo)
+    if (type === "music" && !c.text) return { error: `Le texte de la réponse ${String.fromCharCode(65 + i)} est vide.` };
   }
 
   const correct_index = int(body.correct_index, -1);
