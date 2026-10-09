@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { TYPE_ICONS, TYPE_LABELS, answerColumns, choiceClass, pts } from "@/lib/choices";
 import type { GameState } from "@/lib/types";
 import { useCountdown, useGameState } from "@/lib/useGameState";
+import { FitText } from "./FitText";
 import { Letter } from "./Letter";
 import { MusicPlayer } from "./MusicPlayer";
 import { Timer } from "./Timer";
@@ -218,6 +219,11 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
   if (!q) return null;
   const revealed = state.game.status === "reveal";
   const isLast = state.game.index + 1 >= state.game.total;
+  // Toutes les réponses d'une question à la même taille : celle qui convient à la plus longue
+  const [fitSizes, setFitSizes] = useState<Record<number, number>>({});
+  const reportFit = useCallback((i: number, px: number) => setFitSizes((s) => (s[i] === px ? s : { ...s, [i]: px })), []);
+  const sizes = Object.values(fitSizes);
+  const answerSize = sizes.length ? Math.min(...sizes) : undefined;
   const answeredCount = state.teams.filter((t) => t.answered).length;
   const hasImageAside = q.type !== "music" && q.mediaUrl;
   // Réponses sans texte (ex. pastilles A, B, C posées sur une photo) : la photo prend la place
@@ -247,7 +253,7 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
         )}
       </div>
 
-      <h1 className="prompt">{q.prompt}</h1>
+      <FitText as="h1" className="prompt" text={q.prompt} min={16} max={56} />
 
       {q.type === "music" && q.mediaUrl && (
         <div className="stage">
@@ -280,7 +286,16 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
                 ) : (
                   <>
                     <Letter index={i} size="lg" />
-                    {c.text && <span className="answer-text">{c.text}</span>}
+                    {c.text && (
+                      <FitText
+                        className="answer-text"
+                        text={c.text}
+                        min={10}
+                        max={64}
+                        size={answerSize}
+                        onFit={(px) => reportFit(i, px)}
+                      />
+                    )}
                   </>
                 )}
                 {revealed && state.distribution && (

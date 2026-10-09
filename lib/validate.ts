@@ -13,7 +13,8 @@ export interface QuestionInput {
   time_limit: number;
 }
 
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+// Les retours à la ligne sont conservés (ex. une ligne en français, une ligne en anglais)
+const str = (v: unknown) => (typeof v === "string" ? v.replace(/\r\n?/g, "\n").trim() : "");
 const int = (v: unknown, fallback: number) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n) : fallback;

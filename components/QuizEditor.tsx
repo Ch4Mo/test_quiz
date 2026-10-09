@@ -164,7 +164,7 @@ export function QuizEditor({ quizId }: { quizId: string }) {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={c.image_url} alt="" />
                         ) : (
-                          c.text
+                          c.text.replace(/\n+/g, " / ")
                         )}
                       </span>
                     ))}
@@ -294,8 +294,10 @@ function QuestionForm({
         </div>
 
         <label className="field">
-          <span>Intitulé de la question</span>
-          <textarea className="input" rows={2} value={d.prompt} onChange={(e) => set("prompt", e.target.value)} required />
+          <span>
+            Intitulé de la question <span className="muted small">· Entrée pour aller à la ligne (ex. français puis anglais)</span>
+          </span>
+          <textarea className="input" rows={3} value={d.prompt} onChange={(e) => set("prompt", e.target.value)} required />
         </label>
 
         {d.type === "music" ? (
@@ -338,8 +340,9 @@ function QuestionForm({
                   {d.type === "image" && (
                     <MediaUpload kind="image" compact value={c.image_url} onChange={(url) => setChoice(i, { image_url: url })} />
                   )}
-                  <input
+                  <textarea
                     className="input"
+                    rows={2}
                     value={c.text}
                     onChange={(e) => setChoice(i, { text: e.target.value })}
                     placeholder={

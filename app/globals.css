@@ -277,7 +277,17 @@ textarea.input { resize: vertical; }
 .host-question, .host-reveal { height: 100vh; height: 100dvh; overflow: hidden; }
 .question-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: clamp(12px, 2vh, 24px); }
 .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: clamp(0.9rem, 1.2vw, 1.25rem); }
-.prompt { font-size: clamp(1.8rem, 3.6vw, 3.6rem); text-align: center; margin: 0; text-wrap: balance; }
+/* Texte ajusté par FitText : la plus grande taille qui tient dans la boîte */
+.fit-text { display: flex; align-items: center; min-width: 0; min-height: 0; overflow: hidden; }
+.fit-text-inner {
+  display: block;
+  width: 100%;
+  white-space: pre-line; /* retours à la ligne saisis dans la console */
+  line-height: 1.15;
+  overflow-wrap: normal; /* un mot trop long fait réduire la taille au lieu d'être coupé */
+}
+.prompt { margin: 0; flex: 0 0 auto; max-height: 17vh; text-align: center; font-weight: 800; }
+.prompt .fit-text-inner { text-wrap: balance; }
 
 .timer {
   --ratio: 1;
@@ -353,14 +363,9 @@ textarea.input { resize: vertical; }
   font-size: calc(var(--s) * 0.55);
   border-radius: calc(var(--s) * 0.22);
 }
-.answer-text {
-  flex: 1;
-  min-width: 0;
-  font-size: clamp(0.75rem, min(5.6cqw, 24cqh), 2.6rem);
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-  hyphens: auto;
-}
+.answer-text { flex: 1; align-self: stretch; }
+/* À la révélation, place pour le compteur d'équipes et la coche dans les coins */
+.is-revealed .answers-text .answer { padding-bottom: clamp(24px, 4.5cqh, 40px); padding-right: clamp(28px, 3vw, 52px); }
 /* Réponse sans texte : seule la lettre, centrée */
 .answer.letter-only { justify-content: center; }
 .answer.letter-only .letter-lg { --s: clamp(32px, min(42cqw, 68cqh), 130px); }
@@ -380,7 +385,7 @@ textarea.input { resize: vertical; }
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.2);
 }
-.answer-caption { display: flex; align-items: center; gap: 12px; font-size: clamp(0.8rem, min(5cqw, 9cqh), 1.7rem); }
+.answer-caption { white-space: pre-line; display: flex; align-items: center; gap: 12px; font-size: clamp(0.8rem, min(5cqw, 9cqh), 1.7rem); }
 .answers-image .answer .letter-lg { --s: clamp(26px, min(12cqw, 16cqh), 64px); }
 
 .is-revealed .answer.is-wrong { opacity: 0.28; filter: grayscale(0.7); transform: scale(0.97); }
@@ -577,7 +582,7 @@ textarea.input { resize: vertical; }
 
 .message { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: pop 0.35s ease-out; }
 .message h1 { font-size: 1.9rem; margin: 0; }
-.message p { margin: 0; font-size: 1.1rem; }
+.message p { margin: 0; font-size: 1.1rem; white-space: pre-line; }
 .message-icon { font-size: 4rem; line-height: 1; }
 .message-good h1 { color: #4ade80; }
 .message-bad h1 { color: #ff8a8a; }
@@ -604,6 +609,7 @@ textarea.input { resize: vertical; }
   font-weight: 700;
   width: 100%;
   text-align: left;
+  white-space: pre-line;
 }
 
 .pad { display: flex; flex-direction: column; gap: 14px; }
@@ -641,7 +647,7 @@ textarea.input { resize: vertical; }
 .pad-btn img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; }
 .pad-letter { font-size: 2.6rem; font-weight: 900; line-height: 1; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25); }
 .pad-btn img + .pad-letter { position: absolute; top: 14px; left: 14px; width: 44px; height: 44px; display: grid; place-items: center; font-size: 1.5rem; border-radius: 12px; background: var(--c); }
-.pad-text { font-size: 1rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
+.pad-text { font-size: 1rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; white-space: pre-line; line-height: 1.2; }
 
 /* ==========================================================================
    Console admin
@@ -710,3 +716,6 @@ textarea.input { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Champs de la console : s'agrandissent avec le texte (plusieurs lignes, ex. français + anglais) */
+.modal textarea.input { field-sizing: content; min-height: 2.8em; max-height: 14em; }
