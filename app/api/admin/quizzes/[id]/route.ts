@@ -23,9 +23,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const denied = await adminGuard();
   if (denied) return denied;
   const { id } = await params;
-  const { title } = await readJson(req);
-  if (typeof title !== "string" || !title.trim()) return fail("Le titre est obligatoire.");
-  const { data, error } = await db().from("quizzes").update({ title: title.trim().slice(0, 120) }).eq("id", id).select().single();
+  const body = await readJson(req);
+  const patch: Record<string, unknown> = {};
+  if (body.title !== undefined) {
+    if (typeof body.title !== "string" || !body.title.trim()) return fail("Le titre est obligatoire.");
+    patch.title = body.title.trim().slice(0, 120);
+  }
+  // Réglages du défilement automatique, en secondes
+  const limits = { answer_time: [5, 600], pause_time: [3, 120], intro_time: [3, 300] } as const;
+  for (const [key, [min, max]] of Object.entries(limits)) {
+    if (body[key] === undefined) continue;
+    const n = Math.round(Number(body[key]));
+    if (!Number.isFinite(n) || n < min || n > max) return fail(`Valeur invalide : entre ${min} et ${max} secondes.`);
+    patch[key] = n;
+  }
+  const { data, error } = await db().from("quizzes").update(patch).eq("id", id).select().single();
   if (error) return fail(error.message, 500);
   return ok(data);
 }

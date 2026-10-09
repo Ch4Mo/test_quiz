@@ -32,19 +32,84 @@ export function currentQuestionId(game: GameRow): string | null {
   return game.current_index >= 0 ? game.question_ids[game.current_index] ?? null : null;
 }
 
-export function answersOpen(game: GameRow, question: Pick<QuestionRow, "time_limit">, now = Date.now()): boolean {
+/** Temps de réponse d'une question : le sien s'il est défini, sinon celui du quiz. */
+export function answerSeconds(game: Pick<GameRow, "answer_time">, question: Pick<QuestionRow, "time_limit">): number {
+  return question.time_limit > 0 ? question.time_limit : game.answer_time;
+}
+
+export function answersOpen(game: GameRow, now = Date.now()): boolean {
   if (game.status !== "question") return false;
-  if (!question.time_limit || !game.question_started_at) return true;
-  const deadline = new Date(game.question_started_at).getTime() + question.time_limit * 1000 + ANSWER_GRACE_MS;
-  return now <= deadline;
+  if (!game.phase_ends_at) return true; // partie en pause
+  return now <= new Date(game.phase_ends_at).getTime() + ANSWER_GRACE_MS;
+}
+
+const inSeconds = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
+
+async function startQuestion(game: GameRow, index: number): Promise<Partial<GameRow>> {
+  const { data } = await db().from("questions").select("time_limit").eq("id", game.question_ids[index]).maybeSingle();
+  return {
+    status: "question",
+    current_index: index,
+    question_started_at: new Date().toISOString(),
+    phase_ends_at: inSeconds(answerSeconds(game, { time_limit: data?.time_limit ?? 0 })),
+    paused_remaining_ms: null,
+  };
+}
+
+/** Étape suivante du déroulé : règles → question → réponse (pause) → question suivante … → résultats. */
+export async function nextPhase(game: GameRow): Promise<Partial<GameRow> | null> {
+  switch (game.status) {
+    case "intro":
+      return startQuestion(game, 0);
+    case "question":
+      return { status: "reveal", phase_ends_at: inSeconds(game.pause_time), paused_remaining_ms: null };
+    case "reveal":
+      return game.current_index + 1 < game.question_ids.length
+        ? startQuestion(game, game.current_index + 1)
+        : { status: "finished", phase_ends_at: null, paused_remaining_ms: null };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Applique un changement à la partie seulement si elle est toujours à la même étape :
+ * deux écrans qui déclenchent la même transition en même temps ne font pas sauter de question.
+ */
+export async function updateGame(game: GameRow, patch: Partial<GameRow>): Promise<boolean> {
+  const { data, error } = await db()
+    .from("games")
+    .update({ ...patch, version: Date.now() })
+    .eq("id", game.id)
+    .eq("status", game.status)
+    .eq("current_index", game.current_index)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+/**
+ * Fait avancer la partie si l'étape en cours est terminée. Il n'y a pas de minuterie côté serveur
+ * (Vercel n'en permet pas) : chaque écran qui consulte l'état au moment voulu déclenche la transition.
+ */
+async function advanceIfDue(game: GameRow): Promise<GameRow> {
+  if (!game.phase_ends_at) return game;
+  const grace = game.status === "question" ? ANSWER_GRACE_MS : 0;
+  if (Date.now() < new Date(game.phase_ends_at).getTime() + grace) return game;
+  const patch = await nextPhase(game);
+  if (!patch) return game;
+  await updateGame(game, patch);
+  return (await loadGame(game.code)) ?? game;
 }
 
 export async function buildState(
   code: string,
   viewer: { teamId: string; token: string } | null,
 ): Promise<GameState | null> {
-  const game = await loadGame(code);
-  if (!game) return null;
+  const loaded = await loadGame(code);
+  if (!loaded) return null;
+  const game = await advanceIfDue(loaded);
 
   const questionId = currentQuestionId(game);
   const [teamsRes, answersRes, questionRes] = await Promise.all([
@@ -79,7 +144,7 @@ export async function buildState(
   const revealed = game.status !== "question";
   let question: PublicQuestion | null = null;
   let distribution: number[] | null = null;
-  if (row && game.status !== "lobby") {
+  if (row && (game.status === "question" || game.status === "reveal")) {
     question = {
       id: row.id,
       type: row.type,
@@ -88,7 +153,7 @@ export async function buildState(
       mediaStart: Number(row.media_start) || 0,
       choices: row.choices.map((c) => ({ text: c.text, imageUrl: c.image_url })),
       points: row.points,
-      timeLimit: row.time_limit,
+      timeLimit: answerSeconds(game, row),
       correctIndex: revealed ? row.correct_index : null,
     };
     if (revealed) {
@@ -133,6 +198,11 @@ export async function buildState(
       index: game.current_index,
       total: game.question_ids.length,
       questionStartedAt: game.question_started_at ? new Date(game.question_started_at).getTime() : null,
+      phaseEndsAt: game.phase_ends_at ? new Date(game.phase_ends_at).getTime() : null,
+      pausedRemainingMs: game.paused_remaining_ms,
+      answerTime: game.answer_time,
+      pauseTime: game.pause_time,
+      introTime: game.intro_time,
     },
     question,
     teams: teamStates,

@@ -53,23 +53,34 @@ export function useGameState(code: string, team: { teamId: string; token: string
     };
   }, [code, refresh]);
 
+  // À la fin de chaque étape, on redemande l'état : c'est ce qui fait avancer la partie toute seule
+  const phaseEndsAt = state?.game.phaseEndsAt ?? null;
+  const status = state?.game.status;
+  useEffect(() => {
+    if (phaseEndsAt === null) return;
+    const margin = status === "question" ? 1800 : 250; // délai de grâce des réponses côté serveur
+    const delay = Math.max(0, phaseEndsAt - (Date.now() + clockOffset)) + margin;
+    const id = setTimeout(refresh, delay);
+    return () => clearTimeout(id);
+  }, [phaseEndsAt, status, clockOffset, refresh]);
+
   return { state, error, refresh, clockOffset };
 }
 
-/** Secondes restantes pour la question en cours (null si pas de chrono). */
+/** Secondes restantes avant la fin de l'étape en cours (règles, question ou pause) ; null sans chrono. */
 export function useCountdown(state: GameState | null, clockOffset: number): number | null {
   const [, setTick] = useState(0);
-  const limit = state?.question?.timeLimit ?? 0;
-  const started = state?.game.questionStartedAt ?? null;
-  const active = state?.game.status === "question" && limit > 0 && started !== null;
+  const endsAt = state?.game.phaseEndsAt ?? null;
+  const paused = state?.game.pausedRemainingMs ?? null;
 
   useEffect(() => {
-    if (!active) return;
+    if (endsAt === null) return;
     const id = setInterval(() => setTick((t) => t + 1), 250);
     return () => clearInterval(id);
-  }, [active]);
+  }, [endsAt]);
 
-  if (!active || started === null) return null;
+  if (paused !== null) return Math.ceil(paused / 1000);
+  if (endsAt === null) return null;
   // Date.now() est lu à chaque rendu : l'intervalle ne sert qu'à provoquer le rafraîchissement
-  return Math.max(0, Math.ceil((started + limit * 1000 - (Date.now() + clockOffset)) / 1000));
+  return Math.max(0, Math.ceil((endsAt - (Date.now() + clockOffset)) / 1000));
 }

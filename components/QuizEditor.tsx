@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { LETTERS, MAX_CHOICES, MIN_CHOICES, TYPE_ICONS, TYPE_LABELS, choiceClass } from "@/lib/choices";
-import type { Choice, QuestionRow, QuestionType, QuizRow } from "@/lib/types";
+import type { Choice, QuestionRow, QuestionType, QuizRow, QuizSettings } from "@/lib/types";
 import { Letter } from "./Letter";
 import { MediaUpload } from "./MediaUpload";
 
@@ -18,7 +18,7 @@ function emptyDraft(type: QuestionType): Draft {
     choices: Array.from({ length: 4 }, () => ({ text: "", image_url: null })),
     correct_index: 0,
     points: 1,
-    time_limit: type === "music" ? 30 : 20,
+    time_limit: 0,
   };
 }
 
@@ -60,6 +60,11 @@ export function QuizEditor({ quizId }: { quizId: string }) {
   const saveTitle = () => {
     if (!quiz || title.trim() === quiz.title) return;
     run(async () => setQuiz(await api<QuizRow>(`/api/admin/quizzes/${quizId}`, { method: "PATCH", body: { title } })));
+  };
+
+  const saveSetting = (key: keyof QuizSettings, value: number) => {
+    if (!quiz || quiz[key] === value) return;
+    run(async () => setQuiz(await api<QuizRow>(`/api/admin/quizzes/${quizId}`, { method: "PATCH", body: { [key]: value } })));
   };
 
   const move = (index: number, delta: number) => {
@@ -111,6 +116,19 @@ export function QuizEditor({ quizId }: { quizId: string }) {
       </header>
 
       {error && !draft && <p className="error-text">{error}</p>}
+
+      <section className="card">
+        <h2>Déroulé automatique</h2>
+        <p className="muted small">
+          Une fois le quiz lancé, tout s&apos;enchaîne seul : écran des règles, puis chaque question, la bonne réponse et un
+          compte à rebours avant la suivante.
+        </p>
+        <div className="row settings">
+          <SettingField label="Temps pour répondre" value={quiz.answer_time} min={5} max={600} onSave={(v) => saveSetting("answer_time", v)} />
+          <SettingField label="Pause entre les questions" value={quiz.pause_time} min={3} max={120} onSave={(v) => saveSetting("pause_time", v)} />
+          <SettingField label="Affichage des règles" value={quiz.intro_time} min={3} max={300} onSave={(v) => saveSetting("intro_time", v)} />
+        </div>
+      </section>
 
       <section className="card">
         <div className="row spread">
@@ -179,6 +197,7 @@ export function QuizEditor({ quizId }: { quizId: string }) {
 
       {draft && (
         <QuestionForm
+          defaultTime={quiz.answer_time}
           draft={draft}
           busy={busy}
           error={error}
@@ -193,13 +212,41 @@ export function QuizEditor({ quizId }: { quizId: string }) {
   );
 }
 
+function SettingField({ label, value, min, max, onSave }: { label: string; value: number; min: number; max: number; onSave: (v: number) => void }) {
+  const [v, setV] = useState(String(value));
+  useEffect(() => setV(String(value)), [value]);
+  const commit = () => {
+    const n = Math.round(Number(v));
+    if (Number.isFinite(n) && n >= min && n <= max) onSave(n);
+    else setV(String(value));
+  };
+  return (
+    <label className="inline-field">
+      {label}
+      <input
+        type="number"
+        className="input input-narrow"
+        min={min}
+        max={max}
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      />
+      s
+    </label>
+  );
+}
+
 function QuestionForm({
+  defaultTime,
   draft: initial,
   busy,
   error,
   onCancel,
   onSave,
 }: {
+  defaultTime: number;
   draft: Draft;
   busy: boolean;
   error: string | null;
@@ -341,7 +388,7 @@ function QuestionForm({
               value={d.time_limit}
               onChange={(e) => set("time_limit", Number(e.target.value))}
             />
-            s <span className="muted small">(0 = illimité)</span>
+            s <span className="muted small">(0 = temps du quiz : {defaultTime} s)</span>
           </label>
         </div>
 

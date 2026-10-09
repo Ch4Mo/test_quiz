@@ -6,19 +6,25 @@ Une web app de quiz en équipes : les questions s'affichent sur le grand écran,
 - **Réponses colorées et numérotées** A / B / C / D… jusqu'à 26 réponses (A à Z), avec la même couleur partout : grand écran, téléphones et console.
 - **Réponses sans texte** pour les questions simples : seule la lettre s'affiche, par exemple pour des pastilles A, B, C posées sur une photo d'illustration.
 - **Réponse définitive** : une fois validée sur le téléphone, la réponse est verrouillée côté serveur. Pas de retour en arrière possible.
-- **Chrono facultatif** par question, points configurables, classement intermédiaire et podium final.
-- **Console admin** : création des quiz, ajout et édition des questions, upload des images et des extraits audio, choix de la bonne réponse, réordonnancement.
+- **Défilement automatique** : une fois le quiz lancé, tout s'enchaîne seul (règles, questions, bonne réponse, compte à rebours, podium final). Les durées se règlent pour chaque quiz : 20 s pour répondre et 10 s entre les questions par défaut.
+- **Console admin** : création des quiz, ajout et édition des questions, upload des images et des extraits audio, choix de la bonne réponse, réordonnancement, suppression d'une partie ou de tout l'historique.
 
 ## Déroulé d'une partie
 
 1. L'admin ouvre la **console** (`/admin`), choisit un quiz et clique sur **▶ Lancer une partie**.
 2. L'**écran de jeu** (`/host/CODE`) affiche un **QR code**. On le projette sur le grand écran.
 3. Chaque équipe scanne le QR code, saisit le **nom de son équipe**, puis arrive sur une **page d'attente**.
-4. Quand toutes les équipes sont là, l'admin clique sur **🚀 Lancer le quiz**.
-5. Pour chaque question : le grand écran affiche la question et les réponses, et les téléphones affichent les boutons A/B/C/D. L'admin clique sur **Révéler la réponse**, puis éventuellement sur **🏆 Classement**, puis sur **Question suivante**.
-6. À la fin, l'écran affiche le **podium**, et chaque téléphone affiche le rang de son équipe.
+4. Quand toutes les équipes sont là, l'admin clique sur **🚀 Lancer le quiz**. Ensuite, tout se déroule seul :
+   - un **écran des règles** s'affiche (temps de réponse, intervalle, défilement automatique), avec un compte à rebours ;
+   - chaque **question** s'affiche sur le grand écran, et les téléphones affichent les boutons A/B/C/D ;
+   - à la fin du temps, ou dès que toutes les équipes ont répondu, la **bonne réponse** s'affiche avec un **compte à rebours** jusqu'à la question suivante ;
+   - après la dernière question, le **podium** s'affiche sur l'écran, et chaque téléphone affiche le rang de son équipe.
 
-Astuce : sur l'écran de jeu, la **flèche droite** ou la **barre d'espace** déclenche l'action principale (compatible avec une télécommande de présentation). Le bouton ⛶ passe en plein écran.
+Les durées se règlent dans l'éditeur du quiz, rubrique **Déroulé automatique**. Une question peut aussi avoir son propre temps de réponse (pratique pour un extrait musical).
+
+Pendant la partie, l'admin garde la main : **⏸ Pause** (ou la barre d'espace), **⏭ Passer** (ou la flèche droite) et **Terminer**. Le bouton ⛶ passe en plein écran.
+
+> L'écran de jeu doit rester ouvert pendant la partie : c'est lui qui affiche les questions et fait avancer le déroulé, avec les téléphones.
 
 ## Architecture
 
@@ -37,6 +43,7 @@ Sécurité : toutes les lectures et écritures passent par les routes API, avec 
 
 1. Créez un projet sur [supabase.com](https://supabase.com).
 2. Ouvrez **SQL Editor → New query**, collez le contenu de [`supabase/schema.sql`](supabase/schema.sql) et cliquez sur **Run**. Le script crée les tables, la sécurité, la publication temps réel et le bucket `media`.
+   **Mise à jour** : après une nouvelle version de l'app, relancez simplement le même script. Il ajoute ce qui manque sans toucher à vos quiz.
 3. Dans **Project Settings → API**, récupérez :
    - l'**URL du projet** ;
    - la clé **anon / publishable** (publique) ;

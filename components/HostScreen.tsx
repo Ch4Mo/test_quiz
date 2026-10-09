@@ -32,21 +32,26 @@ export function HostScreen({ code }: { code: string }) {
     [code, refresh],
   );
 
-  const primary = state ? primaryAction(state) : null;
+  const status = state?.game.status;
+  const running = status === "intro" || status === "question" || status === "reveal";
+  const paused = state?.game.pausedRemainingMs !== null && state?.game.pausedRemainingMs !== undefined;
 
-  // Flèche droite ou barre d'espace : action principale (pratique avec une télécommande de présentation)
+  // Barre d'espace : pause / reprise. Flèche droite : passer à l'étape suivante.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (busy || !primary || primary.disabled) return;
+      if (busy || !running) return;
       if ((e.target as HTMLElement)?.closest("input, textarea, button")) return;
-      if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+      if (e.key === " ") {
         e.preventDefault();
-        act(primary.action);
+        act(paused ? "resume" : "pause");
+      } else if (e.key === "ArrowRight" || e.key === "PageDown") {
+        e.preventDefault();
+        act("skip");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [primary, busy, act]);
+  }, [running, paused, busy, act]);
 
   if (!state) {
     return <div className="host center-screen">{error ? <p className="error-text big">{error}</p> : <div className="spinner" />}</div>;
@@ -56,30 +61,36 @@ export function HostScreen({ code }: { code: string }) {
   return (
     <div className={`host host-${game.status}`}>
       {game.status === "lobby" && <Lobby state={state} onKick={(teamId) => act("kick", { teamId })} />}
-      {(game.status === "question" || game.status === "reveal") && <QuestionView key={state.question?.id} state={state} remaining={remaining} />}
-      {game.status === "leaderboard" && <Leaderboard state={state} />}
+      {game.status === "intro" && <Rules state={state} remaining={remaining} />}
+      {(game.status === "question" || game.status === "reveal") && (
+        <QuestionView key={state.question?.id} state={state} remaining={remaining} />
+      )}
       {game.status === "finished" && <Podium state={state} />}
+      {paused && <div className="paused-banner">⏸ Pause</div>}
 
       <div className="host-controls">
         {(error || actionError) && <span className="error-text">{actionError ?? error}</span>}
-        {game.status === "reveal" && (
-          <button className="btn btn-ghost" disabled={busy} onClick={() => act("leaderboard")}>
-            🏆 Classement
+        {game.status === "lobby" && (
+          <button className="btn btn-primary" disabled={busy || state.teams.length === 0} onClick={() => act("start")}>
+            🚀 Lancer le quiz
           </button>
         )}
-        {primary && (
-          <button className="btn btn-primary" disabled={busy || primary.disabled} onClick={() => act(primary.action)}>
-            {primary.label}
-          </button>
-        )}
-        {game.status !== "lobby" && game.status !== "finished" && (
-          <button
-            className="btn btn-ghost btn-small"
-            disabled={busy}
-            onClick={() => confirm("Terminer la partie maintenant ?") && act("finish")}
-          >
-            Terminer
-          </button>
+        {running && (
+          <>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => act(paused ? "resume" : "pause")} title="Barre d'espace">
+              {paused ? "▶ Reprendre" : "⏸ Pause"}
+            </button>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => act("skip")} title="Flèche droite">
+              ⏭ Passer
+            </button>
+            <button
+              className="btn btn-ghost btn-small"
+              disabled={busy}
+              onClick={() => confirm("Terminer la partie maintenant ?") && act("finish")}
+            >
+              Terminer
+            </button>
+          </>
         )}
         <FullscreenButton />
         <Link className="btn btn-ghost btn-small" href="/admin">
@@ -88,22 +99,6 @@ export function HostScreen({ code }: { code: string }) {
       </div>
     </div>
   );
-}
-
-function primaryAction(state: GameState): { action: string; label: string; disabled?: boolean } | null {
-  const { status, index, total } = state.game;
-  const isLast = index + 1 >= total;
-  switch (status) {
-    case "lobby":
-      return { action: "start", label: "🚀 Lancer le quiz", disabled: state.teams.length === 0 };
-    case "question":
-      return { action: "reveal", label: "Révéler la réponse" };
-    case "reveal":
-    case "leaderboard":
-      return { action: "next", label: isLast ? "🏁 Résultats finaux" : "Question suivante →" };
-    default:
-      return null;
-  }
 }
 
 function FullscreenButton() {
@@ -163,6 +158,61 @@ function Lobby({ state, onKick }: { state: GameState; onKick: (teamId: string) =
   );
 }
 
+function Rules({ state, remaining }: { state: GameState; remaining: number | null }) {
+  const { answerTime, pauseTime, total } = state.game;
+  return (
+    <div className="rules">
+      <h1 className="host-title">{state.game.quizTitle}</h1>
+      {remaining !== null && (
+        <p className="rules-countdown">
+          Le quiz commence dans <strong>{remaining}</strong>
+        </p>
+      )}
+      <div className="card rules-card">
+        <h2>Les règles du jeu</h2>
+        <ul className="rules-list">
+          <li>
+            <span className="rules-icon">❓</span>
+            <span>
+              <strong>{total} questions</strong> s&apos;affichent ici, sur le grand écran
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">📱</span>
+            <span>
+              Chaque équipe répond sur son téléphone en touchant <strong>A, B, C…</strong>
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">⏱</span>
+            <span>
+              <strong>{answerTime} secondes</strong> pour répondre à chaque question
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">🔒</span>
+            <span>
+              Une fois validée, une réponse est <strong>définitive</strong>
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">✅</span>
+            <span>
+              La bonne réponse s&apos;affiche, puis la question suivante arrive <strong>{pauseTime} secondes</strong> plus tard
+            </span>
+          </li>
+          <li>
+            <span className="rules-icon">▶️</span>
+            <span>
+              Le quiz <strong>défile tout seul</strong> jusqu&apos;au podium final
+            </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function QuestionView({ state, remaining }: { state: GameState; remaining: number | null }) {
   const q = state.question;
   if (!q) return null;
@@ -186,8 +236,14 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
         <span className="pill pill-soft">
           {answeredCount} / {state.teams.length} ont répondu
         </span>
-        {remaining !== null && <Timer seconds={remaining} total={q.timeLimit} />}
-        {state.game.status === "question" && q.timeLimit > 0 && remaining === 0 && <span className="pill pill-alert">Temps écoulé</span>}
+        {state.game.status === "question" && remaining === 0 && <span className="pill pill-alert">Temps écoulé</span>}
+        {state.game.status === "question" && remaining !== null && <Timer seconds={remaining} total={q.timeLimit} />}
+        {revealed && remaining !== null && (
+          <span className="next-countdown">
+            {state.game.index + 1 < state.game.total ? "Question suivante dans" : "Résultats dans"}
+            <Timer seconds={remaining} total={state.game.pauseTime} calm />
+          </span>
+        )}
       </div>
 
       <h1 className="prompt">{q.prompt}</h1>
@@ -252,30 +308,6 @@ function QuestionView({ state, remaining }: { state: GameState; remaining: numbe
 
 function ranked(state: GameState) {
   return [...state.teams].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-}
-
-function Leaderboard({ state }: { state: GameState }) {
-  const teams = ranked(state);
-  const max = Math.max(1, ...teams.map((t) => t.score));
-  return (
-    <div className="leaderboard">
-      <h1 className="host-title">
-        Classement <span className="muted">après la question {state.game.index + 1}</span>
-      </h1>
-      <ol className="ranking">
-        {teams.map((t) => (
-          <li key={t.id} className={`rank-${t.rank}`}>
-            <span className="rank-num">{t.rank}</span>
-            <span className="rank-name">{t.name}</span>
-            <span className="rank-bar">
-              <span style={{ width: `${(t.score / max) * 100}%` }} />
-            </span>
-            <span className="rank-score">{pts(t.score)}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
 }
 
 function Podium({ state }: { state: GameState }) {

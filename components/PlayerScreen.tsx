@@ -169,6 +169,24 @@ function TeamView({
         </div>
       );
 
+    case "intro":
+      return (
+        <div className="message">
+          <div className="message-icon">🚀</div>
+          <h1>C&apos;est parti !</h1>
+          {remaining !== null && (
+            <p className="big-countdown">
+              Première question dans <strong>{remaining}</strong>
+            </p>
+          )}
+          <ul className="phone-rules">
+            <li>⏱ {state.game.answerTime} secondes pour répondre</li>
+            <li>🔒 Une réponse validée est définitive</li>
+            <li>▶️ Les questions défilent toutes seules</li>
+          </ul>
+        </div>
+      );
+
     case "question":
       if (!q) return null;
       if (me.answer !== null) {
@@ -190,37 +208,34 @@ function TeamView({
       }
       return <AnswerPad key={q.id} code={code} team={team} state={state} remaining={remaining} refresh={refresh} />;
 
-    case "reveal":
+    case "reveal": {
       if (!q || q.correctIndex === null) return null;
+      const solution = `La bonne réponse était ${LETTERS[q.correctIndex]}${q.choices[q.correctIndex]?.text ? ` : ${q.choices[q.correctIndex].text}` : ""}.`;
+      const next =
+        remaining !== null ? (
+          <p className="muted next-hint">
+            {state.game.index + 1 < state.game.total ? "Question suivante" : "Résultats"} dans {remaining} s
+          </p>
+        ) : null;
       if (me.answer === null) {
         return (
-          <Message
-            icon="😶"
-            title="Pas de réponse"
-            text={`La bonne réponse était ${LETTERS[q.correctIndex]}${q.choices[q.correctIndex]?.text ? ` : ${q.choices[q.correctIndex].text}` : ""}.`}
-            tone="bad"
-          />
+          <>
+            <Message icon="😶" title="Pas de réponse" text={solution} tone="bad" />
+            {next}
+          </>
         );
       }
-      return me.correct ? (
-        <Message icon="🎉" title="Bonne réponse !" text={`+${q.points} point${q.points > 1 ? "s" : ""} pour votre équipe`} tone="good" />
-      ) : (
-        <Message
-          icon="❌"
-          title="Raté…"
-          text={`La bonne réponse était ${LETTERS[q.correctIndex]}${q.choices[q.correctIndex]?.text ? ` : ${q.choices[q.correctIndex].text}` : ""}.`}
-          tone="bad"
-        />
-      );
-
-    case "leaderboard":
       return (
-        <Message
-          icon="🏆"
-          title={`${me.rank}${me.rank === 1 ? "re" : "e"} place`}
-          text={`${me.score} point${me.score > 1 ? "s" : ""} — regardez le classement sur le grand écran !`}
-        />
+        <>
+          {me.correct ? (
+            <Message icon="🎉" title="Bonne réponse !" text={`+${q.points} point${q.points > 1 ? "s" : ""} pour votre équipe`} tone="good" />
+          ) : (
+            <Message icon="❌" title="Raté…" text={solution} tone="bad" />
+          )}
+          {next}
+        </>
       );
+    }
 
     case "finished":
       return (

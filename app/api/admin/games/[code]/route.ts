@@ -1,13 +1,14 @@
-import { loadGame } from "@/lib/game";
+import { loadGame, nextPhase, updateGame } from "@/lib/game";
 import { adminGuard, fail, ok, readJson } from "@/lib/http";
 import { db } from "@/lib/supabase-server";
-import type { GameRow, GameStatus } from "@/lib/types";
+import type { GameRow } from "@/lib/types";
 
 type Ctx = { params: Promise<{ code: string }> };
 
 /**
- * Pilotage de la partie depuis l'écran de jeu.
- * { action: "start" | "reveal" | "leaderboard" | "next" | "finish" | "kick", teamId? }
+ * Pilotage de la partie depuis l'écran de jeu. Une fois lancée, elle défile seule ;
+ * l'admin peut la mettre en pause, passer à l'étape suivante ou l'arrêter.
+ * { action: "start" | "pause" | "resume" | "skip" | "finish" | "kick", teamId? }
  */
 export async function POST(req: Request, { params }: Ctx) {
   const denied = await adminGuard();
@@ -17,8 +18,8 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!game) return fail("Partie introuvable.", 404);
   const { action, teamId } = await readJson(req);
 
-  const now = new Date().toISOString();
   let patch: Partial<GameRow> | null = null;
+  const running = game.status === "intro" || game.status === "question" || game.status === "reveal";
 
   switch (action) {
     case "start": {
@@ -32,26 +33,36 @@ export async function POST(req: Request, { params }: Ctx) {
         .order("created_at");
       if (error) return fail(error.message, 500);
       if (!questions.length) return fail("Ce quiz ne contient aucune question.", 409);
-      patch = { status: "question", question_ids: questions.map((q) => q.id), current_index: 0, question_started_at: now };
+      // Écran des règles, puis la première question arrive toute seule
+      patch = {
+        status: "intro",
+        question_ids: questions.map((q) => q.id),
+        current_index: -1,
+        phase_ends_at: new Date(Date.now() + game.intro_time * 1000).toISOString(),
+        paused_remaining_ms: null,
+      };
       break;
     }
-    case "reveal":
-      if (game.status !== "question") return fail("Aucune question en cours.", 409);
-      patch = { status: "reveal" };
+    case "pause":
+      if (!running || !game.phase_ends_at) return fail("Rien à mettre en pause.", 409);
+      patch = {
+        phase_ends_at: null,
+        paused_remaining_ms: Math.max(0, new Date(game.phase_ends_at).getTime() - Date.now()),
+      };
       break;
-    case "leaderboard":
-      if (game.status !== "reveal") return fail("Révélez d'abord la réponse.", 409);
-      patch = { status: "leaderboard" };
+    case "resume":
+      if (!running || game.paused_remaining_ms === null) return fail("La partie n'est pas en pause.", 409);
+      patch = {
+        phase_ends_at: new Date(Date.now() + game.paused_remaining_ms).toISOString(),
+        paused_remaining_ms: null,
+      };
       break;
-    case "next":
-      if (game.status !== "reveal" && game.status !== "leaderboard") return fail("Révélez d'abord la réponse.", 409);
-      patch =
-        game.current_index + 1 < game.question_ids.length
-          ? { status: "question", current_index: game.current_index + 1, question_started_at: now }
-          : { status: "finished" };
+    case "skip":
+      patch = await nextPhase(game);
+      if (!patch) return fail("Aucune étape à passer.", 409);
       break;
     case "finish":
-      patch = { status: "finished" };
+      patch = { status: "finished", phase_ends_at: null, paused_remaining_ms: null };
       break;
     case "kick": {
       if (typeof teamId !== "string") return fail("Équipe manquante.");
@@ -64,16 +75,16 @@ export async function POST(req: Request, { params }: Ctx) {
       return fail("Action inconnue.");
   }
 
-  // Mise à jour conditionnelle : un double-clic ne fait pas sauter de question.
-  const { data, error } = await db()
-    .from("games")
-    .update({ ...patch, version: Date.now() })
-    .eq("id", game.id)
-    .eq("status", game.status as GameStatus)
-    .eq("current_index", game.current_index)
-    .select("status")
-    .maybeSingle();
+  if (!(await updateGame(game, patch))) return fail("La partie a changé entre-temps.", 409);
+  return ok({ ok: true });
+}
+
+/** Supprime la partie de l'historique (équipes et réponses comprises). */
+export async function DELETE(_req: Request, { params }: Ctx) {
+  const denied = await adminGuard();
+  if (denied) return denied;
+  const { code } = await params;
+  const { error } = await db().from("games").delete().eq("code", code.trim().toUpperCase());
   if (error) return fail(error.message, 500);
-  if (!data) return fail("La partie a changé entre-temps.", 409);
   return ok({ ok: true });
 }

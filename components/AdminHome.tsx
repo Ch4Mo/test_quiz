@@ -18,9 +18,9 @@ interface GameSummary {
 
 const STATUS_LABELS: Record<string, string> = {
   lobby: "Salle d'attente",
+  intro: "En cours",
   question: "En cours",
   reveal: "En cours",
-  leaderboard: "En cours",
   finished: "Terminée",
 };
 
@@ -76,6 +76,22 @@ export function AdminHome() {
     if (!confirm(`Supprimer définitivement le quiz « ${quiz.title} » et ses questions ?`)) return;
     run(async () => {
       await api(`/api/admin/quizzes/${quiz.id}`, { method: "DELETE" });
+      await load();
+    });
+  };
+
+  const removeGame = (game: GameSummary) => {
+    if (!confirm(`Supprimer la partie ${game.code} (${game.quiz_title}) de l'historique ?`)) return;
+    run(async () => {
+      await api(`/api/admin/games/${game.code}`, { method: "DELETE" });
+      await load();
+    });
+  };
+
+  const clearGames = () => {
+    if (!confirm("Effacer tout l'historique des parties, y compris celles en cours ? Les équipes et réponses seront supprimées.")) return;
+    run(async () => {
+      await api("/api/admin/games", { method: "DELETE" });
       await load();
     });
   };
@@ -136,7 +152,12 @@ export function AdminHome() {
 
       {games.length > 0 && (
         <section className="card">
-          <h2>Parties récentes</h2>
+          <div className="row spread">
+            <h2>Parties récentes</h2>
+            <button className="btn btn-small btn-ghost btn-danger" disabled={busy} onClick={clearGames}>
+              🗑 Effacer l&apos;historique
+            </button>
+          </div>
           <ul className="list">
             {games.map((g) => (
               <li key={g.code} className="list-item">
@@ -150,6 +171,9 @@ export function AdminHome() {
                 <Link className="btn btn-small btn-ghost" href={`/host/${g.code}`}>
                   🖥 Ouvrir l&apos;écran de jeu
                 </Link>
+                <button className="btn btn-small btn-ghost btn-danger" disabled={busy} onClick={() => removeGame(g)} title="Supprimer cette partie">
+                  🗑
+                </button>
               </li>
             ))}
           </ul>
