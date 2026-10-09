@@ -1,0 +1,89 @@
+export type QuestionType = "text" | "image" | "music";
+
+export interface Choice {
+  text: string;
+  image_url: string | null;
+}
+
+export interface QuestionRow {
+  id: string;
+  quiz_id: string;
+  position: number;
+  type: QuestionType;
+  prompt: string;
+  media_url: string | null;
+  media_start: number;
+  choices: Choice[];
+  correct_index: number;
+  points: number;
+  time_limit: number;
+}
+
+export interface QuizRow {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+export type GameStatus = "lobby" | "question" | "reveal" | "leaderboard" | "finished";
+
+export interface GameRow {
+  id: string;
+  code: string;
+  quiz_id: string | null;
+  quiz_title: string;
+  status: GameStatus;
+  question_ids: string[];
+  current_index: number;
+  question_started_at: string | null;
+  version: number;
+  created_at: string;
+}
+
+/** Question telle qu'envoyée aux écrans : la bonne réponse n'est incluse qu'après la révélation. */
+export interface PublicQuestion {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  mediaUrl: string | null;
+  mediaStart: number;
+  choices: { text: string; imageUrl: string | null }[];
+  points: number;
+  timeLimit: number;
+  correctIndex: number | null;
+}
+
+export interface TeamState {
+  id: string;
+  name: string;
+  score: number;
+  rank: number;
+  answered: boolean;
+}
+
+export interface GameState {
+  serverNow: number;
+  game: {
+    code: string;
+    status: GameStatus;
+    quizTitle: string;
+    index: number;
+    total: number;
+    questionStartedAt: number | null;
+  };
+  question: PublicQuestion | null;
+  /** Équipes dans l'ordre d'arrivée. */
+  teams: TeamState[];
+  /** Nombre de réponses par choix, uniquement après la révélation. */
+  distribution: number[] | null;
+  me: {
+    id: string;
+    name: string;
+    score: number;
+    rank: number;
+    answer: number | null;
+    correct: boolean | null;
+  } | null;
+  /** Vrai si l'équipe demandée n'existe plus (supprimée par l'admin). */
+  invalidTeam: boolean;
+}
