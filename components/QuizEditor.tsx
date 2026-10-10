@@ -118,6 +118,7 @@ export function QuizEditor({ quizId }: { quizId: string }) {
     });
   };
   const enabledCount = questions.filter((q) => q.enabled).length;
+  const customTimes = questions.filter((q) => q.time_limit > 0).length;
   const allEnabled = questions.length > 0 && enabledCount === questions.length;
   const toggleAll = () => {
     const enabled = !allEnabled;
@@ -197,6 +198,27 @@ export function QuizEditor({ quizId }: { quizId: string }) {
           <SettingField label="Pause entre les questions" value={quiz.pause_time} min={3} max={120} onSave={(v) => saveSetting("pause_time", v)} />
           <SettingField label="Affichage des règles" value={quiz.intro_time} min={3} max={300} onSave={(v) => saveSetting("intro_time", v)} />
         </div>
+        {customTimes > 0 && (
+          <div className="custom-times">
+            <span>
+              ⚠️ {customTimes} question{customTimes > 1 ? "s ont leur" : " a son"} propre temps de réponse, qui remplace le temps
+              ci-dessus.
+            </span>
+            <button
+              className="btn btn-small btn-primary"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api(`/api/admin/quizzes/${quizId}/reset-times`, { method: "POST" });
+                  setQuestions((qs) => qs.map((q) => ({ ...q, time_limit: 0 })));
+                  await load();
+                })
+              }
+            >
+              Utiliser {quiz.answer_time} s pour toutes les questions
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="card">
@@ -265,7 +287,15 @@ export function QuizEditor({ quizId }: { quizId: string }) {
                   {TYPE_ICONS[q.type]}
                 </span>
                 <div className="grow">
-                  <strong>{q.prompt}</strong>
+                  <strong>
+                    {q.prompt}{" "}
+                    <span
+                      className={`time-tag ${q.time_limit > 0 ? "is-custom" : ""}`}
+                      title={q.time_limit > 0 ? "Temps propre à cette question" : "Temps de réponse du quiz"}
+                    >
+                      ⏱ {q.time_limit > 0 ? q.time_limit : quiz.answer_time} s{q.time_limit > 0 ? " · propre" : ""}
+                    </span>
+                  </strong>
                   <span className="q-choices">
                     {q.choices.map((c, ci) => (
                       <span key={ci} className={`mini-choice ${ci === q.correct_index ? "is-correct" : ""}`}>
@@ -493,7 +523,7 @@ function QuestionForm({
             />
           </label>
           <label className="inline-field">
-            Temps de réponse
+            Temps de réponse propre
             <input
               type="number"
               className="input input-narrow"
@@ -502,7 +532,7 @@ function QuestionForm({
               value={d.time_limit}
               onChange={(e) => set("time_limit", Number(e.target.value))}
             />
-            s <span className="muted small">(0 = temps du quiz : {defaultTime} s)</span>
+            s <span className="muted small">(0 = temps du quiz : {defaultTime} s, recommandé)</span>
           </label>
         </div>
 

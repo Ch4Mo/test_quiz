@@ -717,6 +717,9 @@ textarea.input { resize: vertical; }
 .list-item[draggable="true"] { cursor: grab; }
 .list-item.is-dragging { opacity: 0.45; outline: 2px dashed var(--primary); }
 .list-item.is-disabled > :not(.check):not(.drag-handle):not(.row) { opacity: 0.4; }
+.time-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-size: 0.75rem; font-weight: 700; vertical-align: middle; }
+.time-tag.is-custom { background: #f5c518; color: #3b2a00; }
+.custom-times { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 10px 14px; border-radius: 12px; background: rgba(245, 197, 24, 0.12); border: 1px solid rgba(245, 197, 24, 0.5); }
 .q-num { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
 .q-type { font-size: 1.4rem; }
 .q-choices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
