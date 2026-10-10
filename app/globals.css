@@ -59,6 +59,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Pas de curseur de saisie clignotant quand on clique sur du texte : seulement dans les vrais champs */
+body { caret-color: transparent; }
+input, textarea, select, [contenteditable="true"] { caret-color: auto; }
+/* Écran de jeu et téléphones : un clic ne sélectionne pas de texte */
+.host, .player { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.player input { user-select: text; -webkit-user-select: text; }
+
 h1, h2, h3 { margin: 0 0 0.5em; line-height: 1.15; }
 h2 { font-size: 1.25rem; }
 a { color: inherit; }
